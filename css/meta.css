@@ -596,7 +596,7 @@
   min-height: unset; /* override .screen's min-height:100vh */
   /* Visual size = design size × scale */
   width:  calc(980px * var(--battle-scale));
-  height: calc(700px * var(--battle-scale));
+  height: calc(570px * var(--battle-scale));
   overflow: hidden;
   /* Centre in the viewport on very wide screens */
   margin: 0 auto;
