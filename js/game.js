@@ -119,6 +119,35 @@ function initBoardDOM() {
   }
 }
 
+// ── Broadcast Toast ────────────────────────────────────────
+let _broadcastQueue  = [];
+let _broadcastBusy   = false;
+
+function addBroadcast(text, cls = '') {
+  _broadcastQueue.push({ text, cls });
+  if (!_broadcastBusy) _flushBroadcast();
+}
+
+function _flushBroadcast() {
+  if (!_broadcastQueue.length) { _broadcastBusy = false; return; }
+  _broadcastBusy = true;
+  const { text, cls } = _broadcastQueue.shift();
+  const el    = document.getElementById('broadcast');
+  const inner = document.getElementById('broadcast-inner');
+  if (!el || !inner) { _broadcastBusy = false; return; }
+  inner.textContent = text;
+  el.className = cls ? cls : '';
+  el.classList.remove('hidden');
+  // Force reflow so animation restarts
+  void el.offsetWidth;
+  el.classList.add('bc-show');
+  setTimeout(() => {
+    el.classList.remove('bc-show');
+    el.classList.add('hidden');
+    setTimeout(_flushBroadcast, 80);
+  }, 1500);
+}
+
 // ── Hint System ─────────────────────────────────────────────
 let hintTimer = null;
 let hintGemIds = [];
@@ -307,6 +336,8 @@ function processMana(matched, isPlayer) {
       defender.life = Math.max(0, defender.life - dmg);
       logs.push({ type:'damage', text:`💀 ${n} skulls! ${attacker.name} deals ${dmg} damage to ${defender.name}!` });
       skullHit = { atkIdx, defIdx, dmg };
+      if (dmg >= 20)      addBroadcast(`💀 ${dmg} DAMAGE!`, 'bc-damage bc-big');
+      else if (dmg >= 10) addBroadcast(`💀 ${dmg} DMG`, 'bc-damage');
     }
   }
   return { logs, skullHit };
@@ -454,7 +485,10 @@ function processMatches(matched, isPlayer) {
           return;
         }
 
-        if (grantExtra) addLog('extra', '⭐ Match of 4+! EXTRA TURN!');
+        if (grantExtra) {
+          addLog('extra', '⭐ Match of 4+! EXTRA TURN!');
+          addBroadcast('⭐ EXTRA TURN!', 'bc-extra');
+        }
         renderTeams();
         renderTurnIndicator();
 
@@ -564,7 +598,10 @@ function enemyCastSpells() {
   if (front && front.mana >= front.manaCost) {
     front.mana = 0;
     const msg = front.cast(front, state.enemyTeam, state.playerTeam);
-    if (msg) addLog('spell', `✨ ${msg}`);
+    if (msg) {
+      addLog('spell', `✨ ${msg}`);
+      addBroadcast(`✨ ${front.spell}!`, 'bc-enemy-spell');
+    }
     checkDeaths();
     if (checkGameOver()) return;
     renderTeams();
@@ -614,6 +651,7 @@ function checkDeaths() {
     if (t.life <= 0 && !t._deathLogged) {
       t.life = 0; t.mana = 0; t._deathLogged = true;
       addLog('death', `☠️ ${t.name} has been defeated!`);
+      addBroadcast(`☠️ ${t.name}\nDefeated!`, 'bc-death');
     }
   });
 }
@@ -621,8 +659,8 @@ function checkDeaths() {
 function checkGameOver() {
   const pAlive = state.playerTeam.some(t => t.life > 0);
   const eAlive = state.enemyTeam.some(t  => t.life > 0);
-  if (!pAlive) { state.gameOver = true; showOverlay('☠️ DEFEAT',  'Your team has been wiped out…'); renderTeams(); renderTurnIndicator(); return true; }
-  if (!eAlive) { state.gameOver = true; showOverlay('🏆 VICTORY!','You defeated the enemy team!');  renderTeams(); renderTurnIndicator(); return true; }
+  if (!pAlive) { state.gameOver = true; addBroadcast('☠️ DEFEAT', 'bc-death bc-big'); showOverlay('☠️ DEFEAT',  'Your team has been wiped out…'); renderTeams(); renderTurnIndicator(); return true; }
+  if (!eAlive) { state.gameOver = true; addBroadcast('🏆 VICTORY!', 'bc-extra bc-big'); showOverlay('🏆 VICTORY!','You defeated the enemy team!');  renderTeams(); renderTurnIndicator(); return true; }
   return false;
 }
 
@@ -641,6 +679,7 @@ function showOverlay(title, msg) {
 function checkDeadlock() {
   if (!findValidMoves(state.board).length) {
     addLog('system', '🔄 No valid moves — board reshuffled!');
+    addBroadcast('🔄 RESHUFFLED', 'bc-system');
     reshuffleBoard();
     startHintTimer();
   }
@@ -668,8 +707,8 @@ function addLog(type, text) {
   div.className = `log-entry ${type}`;
   div.textContent = text;
   el.appendChild(div);
-  el.scrollTop = el.scrollHeight;
-  while (el.children.length > 40) el.removeChild(el.firstChild);
+  // Keep only last 4 lines in the compact overlay log
+  while (el.children.length > 4) el.removeChild(el.firstChild);
 }
 
 // ── Team Panel Rendering ──────────────────────────────────────
@@ -709,9 +748,12 @@ function renderPanel(containerId, team, isPlayer) {
 }
 
 function renderTurnIndicator() {
-  document.getElementById('turn-indicator').textContent =
+  const el = document.getElementById('turn-pill');
+  if (!el) return;
+  el.textContent =
     state.gameOver    ? '' :
-    !state.playerTurn ? 'Enemy Turn…' : 'Your Turn — Swipe a gem!';
+    !state.playerTurn ? 'Enemy Turn…' : 'Your Turn — Swipe!';
+  el.dataset.enemy = (!state.playerTurn && !state.gameOver) ? '1' : '';
 }
 
 // ── Spell Casting ─────────────────────────────────────────────
@@ -721,7 +763,10 @@ function castSpell(i) {
   if (troop.life <= 0 || troop.mana < troop.manaCost) return;
   troop.mana = 0;
   const msg = troop.cast(troop, state.playerTeam, state.enemyTeam);
-  if (msg) addLog('spell', `✨ ${msg}`);
+  if (msg) {
+    addLog('spell', `✨ ${msg}`);
+    addBroadcast(`✨ ${troop.spell}!`, 'bc-spell');
+  }
   checkDeaths();
   if (checkGameOver()) return;
   renderTeams();
@@ -736,6 +781,9 @@ window.BATTLE = {
     document.getElementById('overlay').classList.add('hidden');
     document.getElementById('message-log').innerHTML = '';
     gemEls.clear();
+    _broadcastQueue = []; _broadcastBusy = false;
+    const bcast = document.getElementById('broadcast');
+    if (bcast) bcast.classList.add('hidden');
     initState(playerTeamData, enemyTeamData);
     initBoardDOM();
     renderTeams();

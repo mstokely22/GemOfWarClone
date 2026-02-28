@@ -107,38 +107,39 @@
 ══════════════════════════════════════════ -->
 <div id="screen-battle" class="screen hidden">
   <div id="game-container">
-    <div id="header">
-      <h1>&#9670; GEMS OF COMBAT &#9670;</h1>
-      <div id="turn-indicator">Your Turn</div>
-    </div>
-
     <div id="battle-area">
       <!-- Player Panel -->
       <div id="player-panel" class="team-panel">
-        <h2>Your Team</h2>
+        <div class="panel-label">Your Team</div>
         <div id="player-troops" class="troops-list"></div>
       </div>
 
-      <!-- Board + Log -->
+      <!-- Board + Broadcast -->
       <div id="center-column">
-        <div id="mana-legend">
-          <span class="legend-item red">🔥 Fire</span>
-          <span class="legend-item blue">💧 Water</span>
-          <span class="legend-item green">🌿 Nature</span>
-          <span class="legend-item yellow">⚡ Light</span>
-          <span class="legend-item purple">✨ Arcane</span>
-          <span class="legend-item brown">🪨 Earth</span>
-          <span class="legend-item skull">💀 Skulls</span>
+        <div id="turn-pill">Your Turn</div>
+        <div id="board-wrap">
+          <div id="game-board"></div>
+          <!-- Broadcast overlay — shown for big moments -->
+          <div id="broadcast" class="hidden">
+            <div id="broadcast-inner"></div>
+          </div>
+          <!-- Compact log ticker overlaid at board bottom -->
+          <div id="message-log"></div>
         </div>
-        <div id="game-board"></div>
-        <div id="message-log">
-          <div class="log-entry system">Match gems to collect mana · Swipe to swap!</div>
+        <div id="mana-legend">
+          <span class="legend-item red">🔥</span>
+          <span class="legend-item blue">💧</span>
+          <span class="legend-item green">🌿</span>
+          <span class="legend-item yellow">⚡</span>
+          <span class="legend-item purple">✨</span>
+          <span class="legend-item brown">🪨</span>
+          <span class="legend-item skull">💀</span>
         </div>
       </div>
 
       <!-- Enemy Panel -->
       <div id="enemy-panel" class="team-panel">
-        <h2>Enemy Team</h2>
+        <div class="panel-label">Enemy Team</div>
         <div id="enemy-troops" class="troops-list"></div>
       </div>
     </div>

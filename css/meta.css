@@ -700,3 +700,127 @@
   #heroes-grid { grid-template-columns: repeat(2, 1fr); }
   #packs-grid  { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* =====================================================
+   LANDSCAPE MOBILE  (coarse pointer = touch, landscape)
+   ===================================================== */
+@media (pointer: coarse) and (orientation: landscape) {
+
+  /* --- Compact screen header on all meta screens --- */
+  .screen-header {
+    padding: 6px 14px;
+    flex-shrink: 0;
+  }
+  .screen-header h2 { font-size: 0.95rem; }
+  .back-btn { padding: 4px 10px; font-size: 0.8rem; }
+
+  /* ---- HOME ---- */
+  #home-content {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 10px 24px;
+    max-width: 100%;
+    overflow-y: hidden;
+  }
+  #home-logo {
+    flex-shrink: 0;
+    width: 220px;
+    text-align: center;
+  }
+  #home-logo h1   { font-size: 1.5rem; margin-bottom: 4px; }
+  #home-logo p    { font-size: 0.75rem; }
+  #home-gem-row   { display: none; }
+  #home-nav {
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    max-width: 320px;
+  }
+  .home-btn { padding: 10px 14px; }
+  .hbtn-sub { font-size: 0.65rem; }
+
+  /* ---- MAP ---- */
+  #map-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 20px;
+    flex: 1;
+  }
+  #map-nodes {
+    flex-direction: row;
+    max-width: none;
+    width: max-content;
+    align-items: center;
+    gap: 0;
+    padding: 8px 0;
+  }
+  .map-node {
+    flex-direction: column;
+    width: 110px;
+    min-height: unset;
+    padding: 10px 6px;
+    text-align: center;
+  }
+  .map-line {
+    width: 28px;
+    height: 3px;
+    flex-shrink: 0;
+    border-radius: 2px;
+    background: var(--border);
+    align-self: center;
+  }
+  .map-info { display: none; }
+  .map-label { font-size: 0.75rem; }
+
+  /* ---- HEROES ---- */
+  #heroes-scroll {
+    overflow-x: auto;
+    overflow-y: auto;
+    flex: 1;
+  }
+  #heroes-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+  .hero-card {
+    padding: 10px 8px;
+  }
+  .hero-icon  { font-size: 2rem; }
+  .hero-name  { font-size: 0.8rem; }
+  .hero-rarity, .hero-stats { font-size: 0.7rem; }
+
+  /* ---- PACKS ---- */
+  #packs-body {
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex: 1;
+  }
+  #packs-grid {
+    grid-template-columns: repeat(4, 180px);
+    width: max-content;
+    padding: 8px 20px;
+    gap: 12px;
+  }
+  .pack-card { padding: 14px 12px; }
+  .pack-icon { font-size: 2rem; }
+  .pack-name { font-size: 0.9rem; }
+  .pack-desc { font-size: 0.7rem; }
+
+  /* ---- TEAM BUILDER ---- */
+  #team-body {
+    padding: 8px 14px;
+    gap: 6px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  .team-slot {
+    min-height: 44px;
+    padding: 6px 12px;
+    gap: 8px;
+  }
+  .slot-emoji  { font-size: 1.3rem; }
+  .slot-name   { font-size: 0.85rem; }
+  .slot-stats  { font-size: 0.7rem; }
+  #launch-battle-btn { padding: 10px; font-size: 0.95rem; }
+}
