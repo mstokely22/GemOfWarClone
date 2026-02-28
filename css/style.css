@@ -395,3 +395,58 @@ html, body {
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg-deep); }
 ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+/* ══════════════════════════════════════════════════════════════
+   ATTACK ANIMATION — skull projectile
+══════════════════════════════════════════════════════════════ */
+.atk-projectile {
+  position: fixed;
+  z-index: 9000;
+  pointer-events: none;
+  font-size: 1.7rem;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 0 6px #ff4444);
+}
+
+/* ── Stagger (defender card shake) ── */
+.troop-card.staggering {
+  animation: cardStagger 0.55s cubic-bezier(.36,.07,.19,.97) both;
+}
+@keyframes cardStagger {
+  0%,100% { transform: translateX(0);   background: inherit; }
+  15%      { transform: translateX(-8px); background: rgba(255,60,60,.25); }
+  30%      { transform: translateX( 7px); background: rgba(255,60,60,.35); }
+  45%      { transform: translateX(-5px); }
+  60%      { transform: translateX( 4px); }
+  75%      { transform: translateX(-2px); }
+}
+
+/* ── Floating damage numbers ── */
+.float-dmg {
+  position: fixed;
+  z-index: 9100;
+  pointer-events: none;
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: #ff4455;
+  text-shadow: 0 0 8px #ff000088, 1px 1px 0 #000;
+  transform: translate(-50%, -100%);
+  animation: floatUp 0.9s ease-out forwards;
+}
+@keyframes floatUp {
+  0%   { opacity: 1;   transform: translate(-50%, -100%) scale(1.2); }
+  30%  { opacity: 1;   transform: translate(-50%, -160%) scale(1);   }
+  100% { opacity: 0;   transform: translate(-50%, -240%) scale(.8);  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HINT SYSTEM — pulsing gem glow
+══════════════════════════════════════════════════════════════ */
+.gem.hint-glow .gem-inner {
+  animation: hintPulse 0.7s ease-in-out infinite alternate;
+}
+@keyframes hintPulse {
+  from { filter: brightness(1.1); box-shadow: 0 0  6px #ffd700aa; }
+  to   { filter: brightness(1.8); box-shadow: 0 0 18px #ffd700ff; }
+}

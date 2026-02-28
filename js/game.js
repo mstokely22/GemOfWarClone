@@ -17,7 +17,8 @@ const SWIPE_THRESHOLD = 15;  // px minimum swipe distance
 const ANIM_SWAP  = 180;   // ms — gem swap slide
 const ANIM_MATCH = 320;   // ms — gem pop
 const ANIM_FALL  = 280;   // ms — gem fall / spawn
-const ENEMY_DELAY = 900;  // ms — pause before enemy acts
+const ENEMY_DELAY  = 900;  // ms — pause before enemy acts
+const ANIM_ATTACK  = 350;  // ms — skull projectile travel
 
 // ── Troop Definitions ───────────────────────────────────────
 function baseTroop(tpl) { return { ...tpl, life: tpl.maxLife, mana: 0, _deathLogged: false }; }
@@ -118,6 +119,95 @@ function initBoardDOM() {
   }
 }
 
+// ── Hint System ─────────────────────────────────────────────
+let hintTimer = null;
+let hintGemIds = [];
+
+function startHintTimer() {
+  clearHint();
+  if (state.gameOver || !state.playerTurn) return;
+  hintTimer = setTimeout(showHint, 3000);
+}
+
+function clearHint() {
+  if (hintTimer) { clearTimeout(hintTimer); hintTimer = null; }
+  hintGemIds.forEach(id => {
+    const el = gemEls.get(id);
+    if (el) el.classList.remove('hint-glow');
+  });
+  hintGemIds = [];
+}
+
+function showHint() {
+  hintTimer = null;
+  if (state.gameOver || state.busy) return;
+  const moves = findValidMoves(state.board);
+  if (!moves.length) return;
+  const move = moves[Math.floor(Math.random() * moves.length)];
+  const g1 = state.board[move.r ][move.c ];
+  const g2 = state.board[move.nr][move.nc];
+  if (g1) { const el = gemEls.get(g1.id); if (el) { el.classList.add('hint-glow'); hintGemIds.push(g1.id); } }
+  if (g2) { const el = gemEls.get(g2.id); if (el) { el.classList.add('hint-glow'); hintGemIds.push(g2.id); } }
+}
+
+// ── Attack Animations + Floating Damage ──────────────────────
+function animateSkullAttack(isPlayer, atkIdx, defIdx, dmg, cb) {
+  const atkPanelId = isPlayer ? 'player-troops' : 'enemy-troops';
+  const defPanelId = isPlayer ? 'enemy-troops'  : 'player-troops';
+  const atkPanel   = document.getElementById(atkPanelId);
+  const defPanel   = document.getElementById(defPanelId);
+  const atkCard    = atkPanel?.children[atkIdx];
+  const defCard    = defPanel?.children[defIdx];
+  if (!atkCard || !defCard) { cb(); return; }
+
+  const atkRect = atkCard.getBoundingClientRect();
+  const defRect = defCard.getBoundingClientRect();
+  const fromX   = atkRect.left + atkRect.width  / 2;
+  const fromY   = atkRect.top  + atkRect.height / 2;
+  const toX     = defRect.left + defRect.width  / 2;
+  const toY     = defRect.top  + defRect.height / 2;
+
+  // Projectile skull emoji
+  const proj = document.createElement('div');
+  proj.className = 'atk-projectile';
+  proj.textContent = '💀';
+  proj.style.cssText =
+    `left:${fromX}px;top:${fromY}px;transition:` +
+    `left ${ANIM_ATTACK}ms cubic-bezier(.4,.2,.2,1),` +
+    `top ${ANIM_ATTACK}ms cubic-bezier(.4,.2,.2,1),` +
+    `opacity ${ANIM_ATTACK}ms ease,` +
+    `transform ${ANIM_ATTACK}ms ease;`;
+  document.body.appendChild(proj);
+
+  // Double rAF ensures the start position is painted before transition
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    proj.style.left      = `${toX}px`;
+    proj.style.top       = `${toY}px`;
+    proj.style.opacity   = '0';
+    proj.style.transform = 'translate(-50%,-50%) scale(2.4) rotate(180deg)';
+  }));
+
+  setTimeout(() => {
+    proj.remove();
+    // Slam the defender card
+    defCard.classList.add('staggering');
+    spawnFloatDmg(defCard, dmg);
+    setTimeout(() => defCard.classList.remove('staggering'), 650);
+    cb();
+  }, ANIM_ATTACK + 20);
+}
+
+function spawnFloatDmg(targetEl, dmg) {
+  const rect = targetEl.getBoundingClientRect();
+  const el   = document.createElement('div');
+  el.className = 'float-dmg';
+  el.textContent = `-${dmg}`;
+  el.style.left  = `${rect.left + rect.width  / 2}px`;
+  el.style.top   = `${rect.top}px`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 950);
+}
+
 // ── Match Detection ──────────────────────────────────────────
 function findAllMatches(board) {
   const matched = new Set();
@@ -202,18 +292,24 @@ function processMana(matched, isPlayer) {
   }
 
   const logs = [];
+  let skullHit = null;
   if (counts['skull']) {
-    const n         = counts['skull'];
-    const attacker  = (isPlayer ? state.playerTeam : state.enemyTeam).find(t=>t.life>0);
-    const defender  = (isPlayer ? state.enemyTeam  : state.playerTeam).find(t=>t.life>0);
-    if (attacker && defender) {
+    const n      = counts['skull'];
+    const atkTeam = isPlayer ? state.playerTeam : state.enemyTeam;
+    const defTeam = isPlayer ? state.enemyTeam  : state.playerTeam;
+    const atkIdx  = atkTeam.findIndex(t => t.life > 0);
+    const defIdx  = defTeam.findIndex(t => t.life > 0);
+    if (atkIdx >= 0 && defIdx >= 0) {
+      const attacker = atkTeam[atkIdx];
+      const defender = defTeam[defIdx];
       const bonus = Math.max(0, n - 3) * SKULL_BONUS_PER_GEM;
       const dmg   = Math.max(1, attacker.attack + bonus - defender.armor);
       defender.life = Math.max(0, defender.life - dmg);
       logs.push({ type:'damage', text:`💀 ${n} skulls! ${attacker.name} deals ${dmg} damage to ${defender.name}!` });
+      skullHit = { atkIdx, defIdx, dmg };
     }
   }
-  return logs;
+  return { logs, skullHit };
 }
 
 // ── Valid Moves (AI + deadlock) ───────────────────────────────
@@ -323,7 +419,7 @@ function processMatches(matched, isPlayer) {
 
   animateMatchPop(matched, () => {
     // Process mana / skull damage
-    const logs = processMana(matched, isPlayer);
+    const { logs, skullHit } = processMana(matched, isPlayer);
     logs.forEach(l => addLog(l.type, l.text));
 
     const manaInfo = Object.entries(counts)
@@ -334,51 +430,62 @@ function processMatches(matched, isPlayer) {
     if (counts['skull']) addLog(isPlayer ? 'player' : 'enemy',
       `${GEM_SYMBOLS['skull']}×${counts['skull']} skulls!`);
 
-    // Remove matched gems from DOM + board
-    for (const key of matched) {
-      const [r,c] = key.split(',').map(Number);
-      const gem = state.board[r][c];
-      if (!gem) continue;
-      const el = gemEls.get(gem.id);
-      if (el) el.remove();
-      gemEls.delete(gem.id);
-      state.board[r][c] = null;
-    }
-
-    checkDeaths();
-    if (checkGameOver()) return;
-
-    // Apply gravity + animate refill
-    resolveGravity(() => {
-      // Cascade check
-      const next = findAllMatches(state.board);
-      if (next.size > 0) {
-        processMatches(next, isPlayer);
-        return;
+    const afterAttack = () => {
+      // Remove matched gems from DOM + board
+      for (const key of matched) {
+        const [r,c] = key.split(',').map(Number);
+        const gem = state.board[r][c];
+        if (!gem) continue;
+        const el = gemEls.get(gem.id);
+        if (el) el.remove();
+        gemEls.delete(gem.id);
+        state.board[r][c] = null;
       }
 
-      if (grantExtra) addLog('extra', '⭐ Match of 4+! EXTRA TURN!');
-      renderTeams();
-      renderTurnIndicator();
+      checkDeaths();
+      if (checkGameOver()) return;
 
-      if (isPlayer && grantExtra) {
-        state.busy = false;
-        return;
-      }
+      // Apply gravity + animate refill
+      resolveGravity(() => {
+        // Cascade check
+        const next = findAllMatches(state.board);
+        if (next.size > 0) {
+          processMatches(next, isPlayer);
+          return;
+        }
 
-      if (isPlayer) {
-        state.playerTurn = false;
-        renderTurnIndicator();
-        state.busy = false;
-        setTimeout(enemyCastSpells, ENEMY_DELAY * 0.5);
-      } else {
-        state.playerTurn = true;
-        state.busy = false;
+        if (grantExtra) addLog('extra', '⭐ Match of 4+! EXTRA TURN!');
         renderTeams();
         renderTurnIndicator();
-        checkDeadlock();
-      }
-    });
+
+        if (isPlayer && grantExtra) {
+          state.busy = false;
+          checkDeadlock();
+          startHintTimer();
+          return;
+        }
+
+        if (isPlayer) {
+          state.playerTurn = false;
+          renderTurnIndicator();
+          state.busy = false;
+          setTimeout(enemyCastSpells, ENEMY_DELAY * 0.5);
+        } else {
+          state.playerTurn = true;
+          state.busy = false;
+          renderTeams();
+          renderTurnIndicator();
+          checkDeadlock();
+          startHintTimer();
+        }
+      });
+    };
+
+    if (skullHit) {
+      animateSkullAttack(isPlayer, skullHit.atkIdx, skullHit.defIdx, skullHit.dmg, afterAttack);
+    } else {
+      afterAttack();
+    }
   });
 }
 
@@ -390,6 +497,7 @@ function onPointerDown(e) {
   const gem = e.target.closest('.gem');
   if (!gem) return;
   e.preventDefault();
+  clearHint();
   dragState = {
     r: +gem.dataset.r,
     c: +gem.dataset.c,
@@ -473,6 +581,7 @@ function enemyMove() {
     state.busy = false;
     renderTeams();
     renderTurnIndicator();
+    startHintTimer();
     return;
   }
 
@@ -533,12 +642,22 @@ function checkDeadlock() {
   if (!findValidMoves(state.board).length) {
     addLog('system', '🔄 No valid moves — board reshuffled!');
     reshuffleBoard();
+    startHintTimer();
   }
 }
 
 function reshuffleBoard() {
+  // Guarantee the new board has at least one valid move
+  let attempts = 0;
+  do {
+    state.board = generateBoard();
+    attempts++;
+  } while (!findValidMoves(state.board).length && attempts < 30);
   nextGemId = 0;
-  state.board = generateBoard();
+  // Re-assign sequential IDs to board gems
+  for (let r = 0; r < BOARD_SIZE; r++)
+    for (let c = 0; c < BOARD_SIZE; c++)
+      state.board[r][c].id = nextGemId++;
   initBoardDOM();
 }
 
@@ -631,6 +750,7 @@ window.BATTLE = {
       board.addEventListener('pointercancel', onPointerCancel);
       this._boardListenersAdded = true;
     }
+    startHintTimer();
   },
 
   retry() {
@@ -642,5 +762,6 @@ window.BATTLE = {
     renderTeams();
     renderTurnIndicator();
     addLog('system', 'Retrying battle! Swipe gems to match 3+.');
+    startHintTimer();
   }
 };
