@@ -65,28 +65,6 @@ html, body {
   min-height: 0;
 }
 
-/* ── Turn Pill ── */
-#turn-pill {
-  font-size: .8rem;
-  font-weight: 700;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  text-align: center;
-  padding: 4px 14px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  color: var(--extra-turn);
-  align-self: center;
-  min-width: 180px;
-  transition: background .3s, color .3s;
-}
-#turn-pill[data-enemy="1"] {
-  color: #ff9966;
-  border-color: #ff6633;
-  background: #1a0808;
-}
-
 /* ── Center column ── */
 #center-column {
   display: flex;
@@ -205,34 +183,6 @@ html, body {
   100% { transform: scale(0);    opacity: 0; }
 }
 
-/* ── Message Log (compact HUD overlay at board bottom) ── */
-#message-log {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 68px;
-  overflow: hidden;
-  background: linear-gradient(transparent, rgba(5,2,20,.88));
-  border-radius: 0 0 8px 8px;
-  padding: 6px 10px 4px;
-  font-size: .72rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 1px;
-  pointer-events: none;
-  z-index: 10;
-}
-
-.log-entry { line-height: 1.4; }
-.log-entry.player { color: #aef; }
-.log-entry.enemy  { color: #fba; }
-.log-entry.spell  { color: #d0aaff; font-style: italic; }
-.log-entry.system { color: var(--text-dim); }
-.log-entry.damage { color: #ff6b6b; font-weight: 700; }
-.log-entry.extra  { color: var(--extra-turn); font-weight: 700; }
-.log-entry.death  { color: #ff4444; font-weight: 700; }
-.log-entry.heal   { color: #58d68d; }
-
 /* ── Team Panels ── */
 .team-panel {
   flex: 1;
@@ -242,6 +192,18 @@ html, body {
   flex-direction: column;
   gap: 6px;
   overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 4px;
+  transition: border-color .25s, box-shadow .25s;
+}
+.turn-active-player {
+  border-color: var(--extra-turn);
+  box-shadow: 0 0 14px rgba(123,255,160,.35);
+}
+.turn-active-enemy {
+  border-color: #ff6633;
+  box-shadow: 0 0 14px rgba(255,80,20,.35);
 }
 .panel-label {
   font-size: .75rem;

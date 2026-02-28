@@ -700,16 +700,8 @@ function reshuffleBoard() {
   initBoardDOM();
 }
 
-// ── Logging ──────────────────────────────────────────────────
-function addLog(type, text) {
-  const el = document.getElementById('message-log');
-  const div = document.createElement('div');
-  div.className = `log-entry ${type}`;
-  div.textContent = text;
-  el.appendChild(div);
-  // Keep only last 4 lines in the compact overlay log
-  while (el.children.length > 4) el.removeChild(el.firstChild);
-}
+// ── Logging (no-op — log removed) ───────────────────────────
+function addLog(_type, _text) { /* log UI removed */ }
 
 // ── Team Panel Rendering ──────────────────────────────────────
 function renderTeams() {
@@ -748,12 +740,15 @@ function renderPanel(containerId, team, isPlayer) {
 }
 
 function renderTurnIndicator() {
-  const el = document.getElementById('turn-pill');
-  if (!el) return;
-  el.textContent =
-    state.gameOver    ? '' :
-    !state.playerTurn ? 'Enemy Turn…' : 'Your Turn — Swipe!';
-  el.dataset.enemy = (!state.playerTurn && !state.gameOver) ? '1' : '';
+  const pp = document.getElementById('player-panel');
+  const ep = document.getElementById('enemy-panel');
+  if (!pp || !ep) return;
+  const playerActive = state.playerTurn && !state.gameOver;
+  const enemyActive  = !state.playerTurn && !state.gameOver;
+  pp.classList.toggle('turn-active',        playerActive);
+  pp.classList.toggle('turn-active-player', playerActive);
+  ep.classList.toggle('turn-active',        enemyActive);
+  ep.classList.toggle('turn-active-enemy',  enemyActive);
 }
 
 // ── Spell Casting ─────────────────────────────────────────────
@@ -779,7 +774,6 @@ window.BATTLE = {
 
   start(playerTeamData, enemyTeamData) {
     document.getElementById('overlay').classList.add('hidden');
-    document.getElementById('message-log').innerHTML = '';
     gemEls.clear();
     _broadcastQueue = []; _broadcastBusy = false;
     const bcast = document.getElementById('broadcast');
@@ -788,8 +782,6 @@ window.BATTLE = {
     initBoardDOM();
     renderTeams();
     renderTurnIndicator();
-    addLog('system', 'Battle started! Swipe gems to match 3+.');
-    addLog('system', '💀 Skulls deal damage · Match 4+ for an EXTRA TURN · Click troop cards to cast spells!');
     if (!this._boardListenersAdded) {
       const board = document.getElementById('game-board');
       board.addEventListener('pointerdown',   onPointerDown,  { passive: false });
@@ -803,13 +795,11 @@ window.BATTLE = {
 
   retry() {
     document.getElementById('overlay').classList.add('hidden');
-    document.getElementById('message-log').innerHTML = '';
     gemEls.clear();
     initState(_lastPlayerTeam, _lastEnemyTeam);
     initBoardDOM();
     renderTeams();
     renderTurnIndicator();
-    addLog('system', 'Retrying battle! Swipe gems to match 3+.');
     startHintTimer();
   }
 };
