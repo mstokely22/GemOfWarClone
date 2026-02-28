@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, viewport-fit=cover" />
+  <title>Gems of Combat</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/meta.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     GLOBAL HUD (gold bar, visible on most screens)
+══════════════════════════════════════════ -->
+<div id="global-hud" class="hidden">
+  <div id="hud-gold-wrap">💰 <span id="hud-gold">0</span>g</div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     HOME SCREEN
+══════════════════════════════════════════ -->
+<div id="screen-home" class="screen">
+  <div id="home-bg"></div>
+  <div id="home-content">
+    <div id="home-logo">
+      <div id="home-gem-row">
+        <span class="hgem red">🔥</span>
+        <span class="hgem blue">💧</span>
+        <span class="hgem green">🌿</span>
+        <span class="hgem yellow">⚡</span>
+        <span class="hgem purple">✨</span>
+      </div>
+      <h1>GEMS OF COMBAT</h1>
+      <div id="home-subtitle">Match · Cast · Conquer</div>
+    </div>
+    <div id="home-progress"></div>
+    <div id="home-resource">💰 <span id="home-gold">0</span>g</div>
+    <nav id="home-nav">
+      <button id="btn-battle" class="home-btn battle-btn">
+        <span class="hbtn-icon">⚔️</span>
+        <span class="hbtn-label">Battle</span>
+        <span class="hbtn-sub">Choose your level</span>
+      </button>
+      <button id="btn-heroes" class="home-btn heroes-btn">
+        <span class="hbtn-icon">🧑</span>
+        <span class="hbtn-label">Heroes</span>
+        <span class="hbtn-sub">View your roster</span>
+      </button>
+      <button id="btn-packs" class="home-btn packs-btn">
+        <span class="hbtn-icon">📦</span>
+        <span class="hbtn-label">Card Packs</span>
+        <span class="hbtn-sub">Unlock new heroes</span>
+      </button>
+    </nav>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     LEVEL MAP SCREEN
+══════════════════════════════════════════ -->
+<div id="screen-map" class="screen hidden">
+  <div class="screen-header">
+    <button class="back-btn" onclick="renderHome()">← Home</button>
+    <h2>World Map</h2>
+    <div class="header-gold">💰 <span id="map-gold">0</span>g</div>
+  </div>
+  <div id="map-scroll">
+    <div id="map-nodes"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     TEAM BUILDER SCREEN
+══════════════════════════════════════════ -->
+<div id="screen-team" class="screen hidden">
+  <div class="screen-header">
+    <button class="back-btn" onclick="renderMap()">← Map</button>
+    <h2 id="team-level-title">Level 1</h2>
+    <div class="header-gold">💰 <span id="team-gold">0</span>g</div>
+  </div>
+  <div id="team-body">
+    <div id="team-col-left">
+      <div class="section-label">Your Team (tap slot to change)</div>
+      <div id="team-slots"></div>
+      <button id="launch-battle-btn" onclick="launchBattle()">⚔️ Go to Battle!</button>
+    </div>
+    <div id="team-col-right">
+      <div class="section-label">Enemies you'll face</div>
+      <div id="team-enemy-preview"></div>
+    </div>
+  </div>
+
+  <!-- Hero Picker Overlay -->
+  <div id="hero-picker-overlay" class="hidden">
+    <div id="hero-picker-box">
+      <div id="picker-header">
+        <span>Choose a Hero</span>
+        <button onclick="closePicker()">✕</button>
+      </div>
+      <div id="picker-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     BATTLE SCREEN  (contains original game-container)
+══════════════════════════════════════════ -->
+<div id="screen-battle" class="screen hidden">
+  <div id="game-container">
+    <div id="header">
+      <h1>&#9670; GEMS OF COMBAT &#9670;</h1>
+      <div id="turn-indicator">Your Turn</div>
+    </div>
+
+    <div id="battle-area">
+      <!-- Player Panel -->
+      <div id="player-panel" class="team-panel">
+        <h2>Your Team</h2>
+        <div id="player-troops" class="troops-list"></div>
+      </div>
+
+      <!-- Board + Log -->
+      <div id="center-column">
+        <div id="mana-legend">
+          <span class="legend-item red">🔥 Fire</span>
+          <span class="legend-item blue">💧 Water</span>
+          <span class="legend-item green">🌿 Nature</span>
+          <span class="legend-item yellow">⚡ Light</span>
+          <span class="legend-item purple">✨ Arcane</span>
+          <span class="legend-item brown">🪨 Earth</span>
+          <span class="legend-item skull">💀 Skulls</span>
+        </div>
+        <div id="game-board"></div>
+        <div id="message-log">
+          <div class="log-entry system">Match gems to collect mana · Swipe to swap!</div>
+        </div>
+      </div>
+
+      <!-- Enemy Panel -->
+      <div id="enemy-panel" class="team-panel">
+        <h2>Enemy Team</h2>
+        <div id="enemy-troops" class="troops-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Battle Overlay (victory/defeat) -->
+  <div id="overlay" class="hidden">
+    <div id="overlay-content">
+      <div id="overlay-title"></div>
+      <div id="overlay-msg"></div>
+      <div id="overlay-btns">
+        <button id="overlay-btn-map"   onclick="window.onBattleEnd && window.onBattleEnd(window._lastBattleWon)">🗺 Return to Map</button>
+        <button id="overlay-btn-retry" onclick="window.BATTLE && window.BATTLE.retry()">🔄 Retry</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     VICTORY REWARDS SCREEN
+══════════════════════════════════════════ -->
+<div id="screen-victory" class="screen hidden">
+  <div id="victory-box">
+    <div id="victory-title">🏆 VICTORY!</div>
+    <div id="vict-level"></div>
+    <div id="victory-rewards">
+      <div id="vict-gold" class="reward-row"></div>
+      <div id="vict-pack" class="reward-row"></div>
+    </div>
+    <div id="victory-btns">
+      <button onclick="victToContinue()" class="vict-btn">🗺 World Map</button>
+      <button onclick="victNextLevel()" class="vict-btn primary" id="vict-next">▶ Next Level</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     HEROES COLLECTION SCREEN
+══════════════════════════════════════════ -->
+<div id="screen-heroes" class="screen hidden">
+  <div class="screen-header">
+    <button class="back-btn" onclick="renderHome()">← Home</button>
+    <h2>Hero Collection</h2>
+    <div class="header-gold">💰 <span id="heroes-gold">0</span>g</div>
+  </div>
+  <div id="heroes-scroll">
+    <div id="heroes-grid"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     CARD PACKS SCREEN
+══════════════════════════════════════════ -->
+<div id="screen-packs" class="screen hidden">
+  <div class="screen-header">
+    <button class="back-btn" onclick="renderHome()">← Home</button>
+    <h2>Card Packs</h2>
+    <div class="header-gold">💰 <span id="packs-gold">0</span>g</div>
+  </div>
+  <div id="packs-body">
+    <div id="free-packs-notice"></div>
+    <div id="packs-grid"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     GACHA / PACK OPENING SCREEN
+══════════════════════════════════════════ -->
+<div id="screen-gacha" class="screen hidden">
+  <div id="gacha-body">
+    <div id="gacha-title">Opening: <span id="gacha-pack-name"></span></div>
+    <div id="gacha-card-wrap">
+      <div id="gacha-card-back">
+        <div id="gacha-card-back-inner">📦</div>
+      </div>
+      <div id="gacha-card-front">
+        <div id="gacha-new-badge" class="gacha-badge"></div>
+        <div id="gacha-hero-emoji" class="gacha-hero-e"></div>
+        <div id="gacha-hero-name" class="gacha-hero-n"></div>
+        <div id="gacha-hero-rarity" class="gacha-hero-r"></div>
+        <div id="gacha-hero-stats" class="gacha-hero-stats"></div>
+        <div id="gacha-hero-spell" class="gacha-hero-spell"></div>
+        <div id="gacha-hero-desc" class="gacha-hero-desc"></div>
+      </div>
+    </div>
+    <div id="gacha-result-info" class="hidden"></div>
+    <button id="gacha-collect-btn" class="hidden" onclick="collectGachaResult()">✔ Collect</button>
+  </div>
+</div>
+
+<!-- Portrait rotation nag (shown via CSS on touch portrait devices) -->
+<div id="portrait-nag">
+  <div id="portrait-nag-icon">📱</div>
+  <div id="portrait-nag-title">Rotate Your Device</div>
+  <div id="portrait-nag-sub">Gems of Combat plays in landscape mode</div>
+  <div id="portrait-nag-arrow">↻</div>
+</div>
+
+<script src="js/app.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

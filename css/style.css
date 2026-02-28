@@ -1,0 +1,397 @@
+/* ============================================================
+   GEMS OF COMBAT - Stylesheet
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-deep:     #0d0821;
+  --bg-panel:    #1a1035;
+  --bg-mid:      #1a1035;   /* alias used by meta.css */
+  --bg-card:     #231545;
+  --border:      #3a2560;
+  --accent:      #7b2fff;
+  --text:        #e8deff;
+  --text-main:   #e8deff;   /* alias used by meta.css */
+  --text-dim:    #8878b0;
+  --skull-color: #8a9ba8;
+  --red:    #e74c3c;
+  --blue:   #3498db;
+  --green:  #27ae60;
+  --yellow: #f1c40f;
+  --purple: #9b59b6;
+  --brown:  #a0522d;
+  --skull:  #7f8c8d;
+  --extra-turn: #ffd700;
+  --gem-size: 62px;
+  --gem-gap:  4px;
+  /* Responsive battle scale — set by scaleBattle() in app.js */
+  --battle-scale: 1;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg-deep);
+  color: var(--text);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow-x: hidden;
+}
+
+/* ── Header ── */
+#header {
+  text-align: center;
+  padding: 14px 0 8px;
+  border-bottom: 2px solid var(--border);
+  background: linear-gradient(180deg, #1a0a3e 0%, var(--bg-deep) 100%);
+}
+#header h1 {
+  font-size: 2rem;
+  letter-spacing: .2em;
+  background: linear-gradient(90deg, #c97bff, #7b2fff, #c97bff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+#turn-indicator {
+  margin-top: 6px;
+  font-size: .95rem;
+  font-weight: 600;
+  letter-spacing: .12em;
+  color: var(--extra-turn);
+  min-height: 1.4em;
+}
+
+/* ── Layout ── */
+/*
+  #game-container has a fixed 980×700 design size.
+  scaleBattle() in app.js sets --battle-scale so it shrinks to fit
+  any screen. transform-origin: top left + matching wrapper size
+  means the visual output perfectly fills #screen-battle.
+*/
+#game-container {
+  width:  980px;
+  height: 700px;
+  display: flex;
+  flex-direction: column;
+  transform: scale(var(--battle-scale));
+  transform-origin: top left;
+  flex-shrink: 0;
+}
+
+#battle-area {
+  flex: 1;
+  display: flex;
+  gap: 16px;
+  padding: 14px 12px;
+  align-items: flex-start;
+  overflow: hidden;
+}
+
+/* ── Center column ── */
+#center-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ── Mana legend ── */
+#mana-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 12px;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .05em;
+}
+.legend-item { padding: 2px 8px; border-radius: 4px; background: var(--bg-card); }
+.legend-item.red    { color: var(--red);    border: 1px solid var(--red); }
+.legend-item.blue   { color: var(--blue);   border: 1px solid var(--blue); }
+.legend-item.green  { color: var(--green);  border: 1px solid var(--green); }
+.legend-item.yellow { color: var(--yellow); border: 1px solid var(--yellow); }
+.legend-item.purple { color: var(--purple); border: 1px solid var(--purple); }
+.legend-item.brown  { color: var(--brown);  border: 1px solid var(--brown); }
+.legend-item.skull  { color: var(--skull);  border: 1px solid var(--skull); }
+
+/* ── Game Board ── */
+#game-board {
+  position: relative;
+  width:  524px;  /* 8 * (62 + 4) - 4 = 524 */
+  height: 524px;
+  background: #110826;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 30px rgba(123, 47, 255, 0.35);
+  touch-action: none;  /* let pointer events handle touch */
+}
+
+/* ── Gem cells ──
+   Outer .gem is absolutely positioned using transform:translate()
+   for smooth GPU-accelerated movement animations.
+   Inner .gem-inner handles all visual effects (hover, pop, shine).
+── */
+.gem {
+  position: absolute;
+  width:  var(--gem-size);
+  height: var(--gem-size);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  cursor: grab;
+  user-select: none;
+  /* position transitions for swap & fall */
+  will-change: transform;
+  z-index: 1;
+}
+.gem:active { cursor: grabbing; }
+
+/* Inner wrapper — handles visual effects so they don't fight position transform */
+.gem-inner {
+  width:  100%;
+  height: 100%;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.55rem;
+  position: relative;
+  overflow: hidden;
+  transition: filter .15s ease;
+}
+/* Shine highlight */
+.gem-inner::after {
+  content: '';
+  position: absolute;
+  top: 3px; left: 5px;
+  width: 40%; height: 22%;
+  background: rgba(255,255,255,.22);
+  border-radius: 50%;
+  transform: rotate(-20deg);
+  pointer-events: none;
+}
+
+.gem:hover .gem-inner { filter: brightness(1.18); }
+
+.gem.red    { background: radial-gradient(circle at 35% 35%, #ff6b5b, #8b1a10); border-color: #e74c3c; }
+.gem.blue   { background: radial-gradient(circle at 35% 35%, #5dade2, #1a5276); border-color: #3498db; }
+.gem.green  { background: radial-gradient(circle at 35% 35%, #58d68d, #1a5e35); border-color: #27ae60; }
+.gem.yellow { background: radial-gradient(circle at 35% 35%, #f7dc6f, #9a6b00); border-color: #f1c40f; }
+.gem.purple { background: radial-gradient(circle at 35% 35%, #c39bd3, #6c3483); border-color: #9b59b6; }
+.gem.brown  { background: radial-gradient(circle at 35% 35%, #c8956c, #5d2a0e); border-color: #a0522d; }
+.gem.skull  { background: radial-gradient(circle at 35% 35%, #bdc3c7, #2c3e50); border-color: #7f8c8d; }
+
+/* Pop animation on .gem-inner so position transform is not disturbed */
+.gem-inner.popping {
+  animation: gemPop 0.32s ease forwards;
+}
+
+@keyframes gemPop {
+  0%   { transform: scale(1);    opacity: 1; filter: brightness(1); }
+  40%  { transform: scale(1.35); opacity: .9; filter: brightness(2.2); }
+  100% { transform: scale(0);    opacity: 0; }
+}
+
+/* ── Message Log ── */
+#message-log {
+  width: 524px; /* matches board width */
+  max-height: 110px;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: .8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  scroll-behavior: smooth;
+}
+#message-log::-webkit-scrollbar { width: 5px; }
+#message-log::-webkit-scrollbar-track { background: var(--bg-deep); }
+#message-log::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+.log-entry { line-height: 1.4; }
+.log-entry.player { color: #aef; }
+.log-entry.enemy  { color: #fba; }
+.log-entry.spell  { color: #d0aaff; font-style: italic; }
+.log-entry.system { color: var(--text-dim); }
+.log-entry.damage { color: #ff6b6b; font-weight: 700; }
+.log-entry.extra  { color: var(--extra-turn); font-weight: 700; }
+.log-entry.death  { color: #ff4444; font-weight: 700; }
+.log-entry.heal   { color: #58d68d; }
+
+/* ── Team Panels ── */
+.team-panel {
+  flex: 1;
+  min-width: 160px;
+  max-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.team-panel h2 {
+  font-size: .9rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-align: center;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.troops-list { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Troop Cards ── */
+.troop-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 10px 8px;
+  position: relative;
+  transition: opacity .3s, filter .3s;
+}
+.troop-card.dead {
+  opacity: .35;
+  filter: grayscale(1);
+  pointer-events: none;
+}
+.troop-card.can-cast {
+  border-color: var(--extra-turn);
+  box-shadow: 0 0 8px rgba(255,215,0,.5);
+  cursor: pointer;
+}
+.troop-card.can-cast:hover {
+  box-shadow: 0 0 14px rgba(255,215,0,.8);
+}
+.troop-card .troop-name {
+  font-size: .85rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.troop-card .troop-name .color-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.troop-card .troop-stats {
+  font-size: .72rem;
+  color: var(--text-dim);
+  display: flex;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.troop-card .troop-stats span { display: flex; align-items: center; gap: 2px; }
+
+/* Life bar */
+.hp-bar-bg {
+  height: 7px;
+  background: #1a0a2e;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.hp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #e74c3c, #c0392b);
+  border-radius: 4px;
+  transition: width .4s ease;
+}
+
+/* Mana bar */
+.mana-bar-bg {
+  height: 7px;
+  background: #1a0a2e;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.mana-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width .4s ease;
+}
+.mana-bar-fill.red    { background: linear-gradient(90deg, var(--red),    #8b1a10); }
+.mana-bar-fill.blue   { background: linear-gradient(90deg, var(--blue),   #1a5276); }
+.mana-bar-fill.green  { background: linear-gradient(90deg, var(--green),  #1a5e35); }
+.mana-bar-fill.yellow { background: linear-gradient(90deg, var(--yellow), #9a6b00); }
+.mana-bar-fill.purple { background: linear-gradient(90deg, var(--purple), #6c3483); }
+.mana-bar-fill.brown  { background: linear-gradient(90deg, var(--brown),  #5d2a0e); }
+
+.troop-card .spell-name {
+  font-size: .7rem;
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.troop-card .mana-label {
+  font-size: .68rem;
+  color: var(--text-dim);
+  text-align: right;
+}
+.cast-hint {
+  font-size: .68rem;
+  color: var(--extra-turn);
+  text-align: center;
+  margin-top: 3px;
+  font-weight: 600;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .4; }
+}
+
+/* ── Overlay ── */
+#overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+#overlay.hidden { display: none; }
+#overlay-content {
+  background: var(--bg-card);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  padding: 40px 50px;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(123,47,255,.6);
+}
+#overlay-title {
+  font-size: 2.5rem;
+  font-weight: 900;
+  letter-spacing: .1em;
+  margin-bottom: 12px;
+}
+#overlay-msg {
+  font-size: 1rem;
+  color: var(--text-dim);
+  margin-bottom: 28px;
+}
+#overlay-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 36px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  cursor: pointer;
+  transition: background .2s, transform .1s;
+}
+#overlay-btn:hover { background: #9b4fff; transform: scale(1.04); }
+
+/* ── Scrollbar for whole page ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
