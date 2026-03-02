@@ -1,0 +1,140 @@
+/* ============================================================
+   GEMS OF COMBAT — SVG Art Styles
+   Companion to style.css; imported in index.html after style.css
+============================================================ */
+
+/* ── Gem SVG sizing ─────────────────────────────────────────
+   The .gem-inner container holds an inline SVG gem instead of
+   an emoji.  Let the SVG fill the cell without overflow.
+────────────────────────────────────────────────────────────── */
+.gem-inner {
+  /* Override the emoji font-size — SVG scales via its own viewBox */
+  font-size: 0;
+  padding: 3px;
+}
+
+.gem-inner svg {
+  width:  100%;
+  height: 100%;
+  display: block;
+  /* keep SVG crisp at half-pixel scales */
+  shape-rendering: geometricPrecision;
+}
+
+/* ── Troop card frame overlay ───────────────────────────────
+   renderPanel() injects a <div class="card-frame-svg"> that
+   holds the absolute-positioned SVG frame (from cards.js).
+   The .card-inner sits above it via z-index.
+────────────────────────────────────────────────────────────── */
+.troop-card {
+  /* ensure position:relative is set (already in style.css, harmless duplicate) */
+  position: relative;
+  overflow: hidden;
+}
+
+.card-frame-svg {
+  position: absolute;
+  inset: 0;
+  width:  100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.card-frame-svg svg {
+  width:  100%;
+  height: 100%;
+  display: block;
+}
+
+/* Content inside the card sits above the SVG frame layer */
+.card-inner {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Hero portrait badge ────────────────────────────────────
+   The portrait row holds the SVG badge + name block.
+   Designed by rendering.js renderPanel().
+────────────────────────────────────────────────────────────── */
+.card-portrait-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.card-portrait {
+  flex-shrink: 0;
+  width:  38px;
+  height: 38px;
+}
+
+.card-portrait svg {
+  width:  100%;
+  height: 100%;
+  display: block;
+}
+
+.card-title-block {
+  min-width: 0;
+  flex: 1;
+}
+
+/* ── Stat icons (sword / shield / heart) ────────────────────
+   Each stat span wraps an SVG icon + a text node.
+────────────────────────────────────────────────────────────── */
+.troop-card .troop-stats span svg {
+  width:  13px;
+  height: 13px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* ── Legendary card glow animation ─────────────────────────
+   Applied to the card-frame-svg element itself so it doesn't
+   disturb layout.
+────────────────────────────────────────────────────────────── */
+.troop-card.rarity-legendary .card-frame-svg {
+  animation: legendaryPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes legendaryPulse {
+  0%, 100% { opacity: 1;   filter: drop-shadow(0 0 6px #d4af37); }
+  50%       { opacity: .85; filter: drop-shadow(0 0 18px #f39c12); }
+}
+
+/* ── Home screen gem row ────────────────────────────────────
+   The hgem spans in #home-gem-row are populated with SVG by
+   main.js; give them a fixed size so they display correctly.
+────────────────────────────────────────────────────────────── */
+.hgem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width:  48px;
+  height: 48px;
+  font-size: 0;   /* hide any fallback text */
+}
+
+.hgem svg {
+  width:  100%;
+  height: 100%;
+  display: block;
+}
+
+/* ── Mana legend SVG icons ──────────────────────────────────
+   .legend-item spans that have been upgraded to SVG wrappers.
+────────────────────────────────────────────────────────────── */
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0;
+}
+
+.legend-item svg {
+  width:  22px;
+  height: 22px;
+  display: block;
+}

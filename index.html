@@ -6,6 +6,7 @@
   <title>Gems of Combat</title>
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/meta.css" />
+  <link rel="stylesheet" href="css/art.css" />
 </head>
 <body>
 
@@ -43,13 +44,18 @@
       </button>
       <button id="btn-heroes" class="home-btn heroes-btn">
         <span class="hbtn-icon">🧑</span>
-        <span class="hbtn-label">Heroes</span>
-        <span class="hbtn-sub">View your roster</span>
+        <span class="hbtn-label">Roster</span>
+        <span class="hbtn-sub">Manage characters</span>
       </button>
       <button id="btn-packs" class="home-btn packs-btn">
         <span class="hbtn-icon">📦</span>
-        <span class="hbtn-label">Card Packs</span>
-        <span class="hbtn-sub">Unlock new heroes</span>
+        <span class="hbtn-label">Equipment Packs</span>
+        <span class="hbtn-sub">Roll for gear</span>
+      </button>
+      <button id="btn-upgrade" class="home-btn upgrade-btn">
+        <span class="hbtn-icon">🔨</span>
+        <span class="hbtn-label">Forge</span>
+        <span class="hbtn-sub">Upgrade &amp; dismantle</span>
       </button>
     </nav>
   </div>
@@ -60,7 +66,7 @@
 ══════════════════════════════════════════ -->
 <div id="screen-map" class="screen hidden">
   <div class="screen-header">
-    <button class="back-btn" onclick="renderHome()">← Home</button>
+    <button class="back-btn" id="map-back-btn">← Home</button>
     <h2>World Map</h2>
     <div class="header-gold">💰 <span id="map-gold">0</span>g</div>
   </div>
@@ -74,7 +80,7 @@
 ══════════════════════════════════════════ -->
 <div id="screen-team" class="screen hidden">
   <div class="screen-header">
-    <button class="back-btn" onclick="renderMap()">← Map</button>
+    <button class="back-btn" id="team-back-btn">← Map</button>
     <h2 id="team-level-title">Level 1</h2>
     <div class="header-gold">💰 <span id="team-gold">0</span>g</div>
   </div>
@@ -82,23 +88,25 @@
     <div id="team-col-left">
       <div class="section-label">Your Team (tap slot to change)</div>
       <div id="team-slots"></div>
-      <button id="launch-battle-btn" onclick="launchBattle()">⚔️ Go to Battle!</button>
+      <button id="launch-battle-btn">⚔️ Go to Battle!</button>
     </div>
     <div id="team-col-right">
       <div class="section-label">Enemies you'll face</div>
       <div id="team-enemy-preview"></div>
     </div>
   </div>
+</div>
 
-  <!-- Hero Picker Overlay -->
-  <div id="hero-picker-overlay" class="hidden">
-    <div id="hero-picker-box">
-      <div id="picker-header">
-        <span>Choose a Hero</span>
-        <button onclick="closePicker()">✕</button>
-      </div>
-      <div id="picker-grid"></div>
+<!-- ═══════════════════════════════════════
+     GLOBAL PICKER OVERLAY (used by team-builder and roster screens)
+══════════════════════════════════════════ -->
+<div id="hero-picker-overlay" class="hidden">
+  <div id="hero-picker-box">
+    <div id="picker-header">
+      <span>Choose</span>
+      <button id="picker-close-btn">✕</button>
     </div>
+    <div id="picker-grid"></div>
   </div>
 </div>
 
@@ -148,8 +156,8 @@
       <div id="overlay-title"></div>
       <div id="overlay-msg"></div>
       <div id="overlay-btns">
-        <button id="overlay-btn-map"   onclick="window.onBattleEnd && window.onBattleEnd(window._lastBattleWon)">🗺 Return to Map</button>
-        <button id="overlay-btn-retry" onclick="window.BATTLE && window.BATTLE.retry()">🔄 Retry</button>
+        <button id="overlay-quit-btn">🗺 Return to Map</button>
+        <button id="overlay-retry-btn">🔄 Retry</button>
       </div>
     </div>
   </div>
@@ -165,10 +173,13 @@
     <div id="victory-rewards">
       <div id="vict-gold" class="reward-row"></div>
       <div id="vict-pack" class="reward-row"></div>
+      <div id="vict-xp"   class="reward-row"></div>
     </div>
+    <div id="vict-levelups"></div>
+    <div id="vict-unlocks"></div>
     <div id="victory-btns">
-      <button onclick="victToContinue()" class="vict-btn">🗺 World Map</button>
-      <button onclick="victNextLevel()" class="vict-btn primary" id="vict-next">▶ Next Level</button>
+      <button id="vict-continue-btn" class="vict-btn">🗺 World Map</button>
+      <button id="vict-next-btn" class="vict-btn primary">▶ Next Level</button>
     </div>
   </div>
 </div>
@@ -178,13 +189,16 @@
 ══════════════════════════════════════════ -->
 <div id="screen-heroes" class="screen hidden">
   <div class="screen-header">
-    <button class="back-btn" onclick="renderHome()">← Home</button>
-    <h2>Hero Collection</h2>
+    <button class="back-btn" id="heroes-back-btn">← Home</button>
+    <h2>Character Roster</h2>
     <div class="header-gold">💰 <span id="heroes-gold">0</span>g</div>
   </div>
   <div id="heroes-scroll">
     <div id="heroes-grid"></div>
   </div>
+
+  <!-- Equipment Management Overlay (shared with picker) -->
+  <div id="equip-overlay" class="hidden"></div>
 </div>
 
 <!-- ═══════════════════════════════════════
@@ -192,13 +206,28 @@
 ══════════════════════════════════════════ -->
 <div id="screen-packs" class="screen hidden">
   <div class="screen-header">
-    <button class="back-btn" onclick="renderHome()">← Home</button>
+    <button class="back-btn" id="packs-back-btn">← Home</button>
     <h2>Card Packs</h2>
     <div class="header-gold">💰 <span id="packs-gold">0</span>g</div>
   </div>
   <div id="packs-body">
     <div id="free-packs-notice"></div>
     <div id="packs-grid"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     UPGRADE / FORGE SCREEN
+══════════════════════════════════════════ -->
+<div id="screen-upgrade" class="screen hidden">
+  <div class="screen-header">
+    <button class="back-btn" id="upgrade-back-btn">← Home</button>
+    <h2>⚒ Forge</h2>
+    <div class="header-gold">💰 <span id="upgrade-gold">0</span>g</div>
+  </div>
+  <div id="upgrade-body">
+    <div id="materials-bar"></div>
+    <div id="upgrade-grid"></div>
   </div>
 </div>
 
@@ -223,7 +252,7 @@
       </div>
     </div>
     <div id="gacha-result-info" class="hidden"></div>
-    <button id="gacha-collect-btn" class="hidden" onclick="collectGachaResult()">✔ Collect</button>
+    <button id="gacha-collect-btn" class="hidden">✔ Collect</button>
   </div>
 </div>
 
@@ -235,7 +264,6 @@
   <div id="portrait-nag-arrow">↻</div>
 </div>
 
-<script src="js/app.js"></script>
-<script src="js/game.js"></script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>
