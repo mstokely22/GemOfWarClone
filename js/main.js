@@ -9,10 +9,11 @@ import './battle/engine.js';
 import { loadSave }        from './state/save.js';
 import { scaleBattle }     from './utils/scaling.js';
 import { renderHome }      from './screens/home.js';
-import { renderMap }       from './screens/map.js';
+import { renderDungeonMap } from './screens/dungeonMap.js';
 import { renderHeroes }    from './screens/heroes.js';
 import { renderPacks }     from './screens/packs.js';
 import { renderUpgrade }   from './screens/upgrade.js';
+import { renderDungeonSelect } from './screens/dungeonSelect.js';
 import { goToTeamBuilder, launchBattle, closePicker } from './screens/teamBuilder.js';
 import { victToContinue, victNextLevel, onBattleEnd } from './screens/victory.js';
 import { collectGachaResult } from './screens/packs.js';
@@ -31,17 +32,20 @@ document.addEventListener('DOMContentLoaded', () => {
   renderHome();
 
   // ── Nav bar ────────────────────────────────────────────────
-  document.getElementById('btn-battle')?.addEventListener('click', renderMap);
+  document.getElementById('btn-battle')?.addEventListener('click', renderDungeonSelect);
   document.getElementById('btn-heroes')?.addEventListener('click', renderHeroes);
   document.getElementById('btn-packs')?.addEventListener('click', renderPacks);
   document.getElementById('btn-upgrade')?.addEventListener('click', renderUpgrade);
   document.getElementById('btn-home')?.addEventListener('click', renderHome);
 
-  // ── Map buttons ────────────────────────────────────────────
-  document.getElementById('map-back-btn')?.addEventListener('click', renderHome);
+  // ── Dungeon Select ──────────────────────────────────────────────
+  document.getElementById('dungeon-select-back-btn')?.addEventListener('click', renderHome);
+
+  // ── Dungeon Map ────────────────────────────────────────────────
+  document.getElementById('dmap-back-btn')?.addEventListener('click', renderDungeonSelect);
 
   // ── Team builder ───────────────────────────────────────────
-  document.getElementById('team-back-btn')?.addEventListener('click', renderMap);
+  document.getElementById('team-back-btn')?.addEventListener('click', renderDungeonMap);
   document.getElementById('launch-battle-btn')?.addEventListener('click', launchBattle);
   document.getElementById('picker-close-btn')?.addEventListener('click', closePicker);
   document.getElementById('hero-picker-overlay')?.addEventListener('click', e => {
@@ -50,12 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Battle screen ──────────────────────────────────────────
   document.getElementById('battle-retreat-btn')?.addEventListener('click', () => {
-    window.onBattleEnd(false);
-  });
-  document.getElementById('overlay-retry-btn')?.addEventListener('click', () => {
-    window.BATTLE?.retry();
-  });
-  document.getElementById('overlay-quit-btn')?.addEventListener('click', () => {
     window.onBattleEnd(false);
   });
 

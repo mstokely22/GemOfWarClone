@@ -1,43 +1,39 @@
 // ============================================================
 //  GEMS OF COMBAT — Save State (localStorage persistence)
-//  v3: character-class + equipment model
+//  v4: dungeon crawl model
 // ============================================================
 import { defaultMaterials } from '../data/materials.js';
 
-export const SAVE_KEY = 'gems_of_combat_v3';
+export const SAVE_KEY = 'gems_of_combat_v4';
 
 const DEFAULT_SAVE = {
   gold: 300,
-  highestLevel: 0,
-  levelStars: {},                       // { 0: 1, 4: 1 … } levelIndex → stars
+
+  // ── Dungeon progress ─────────────────────────────────────────
+  dungeonsCleared: [],  // array of dungeon IDs fully beaten
+  activeDungeon:   null, // { dungeonId, rooms[], startRoomId, pendingRoomId, pendingBattle, dungeonComplete }
 
   // ── Characters ──────────────────────────────────────────────
   unlockedCharIds: ['roland', 'elara'],
-  team: ['roland', 'elara', null, null], // 4-slot party (charIds)
+  team: ['roland', 'elara', null, null],
 
-  // Per-character data: XP + equipment loadout
   charData: {
     roland: { xp: 0, weapon: 'iron_axe', armor: 'iron_breastplate', acc1: null, acc2: null },
     elara:  { xp: 0, weapon: 'wooden_mace', armor: 'padded_armor',  acc1: null, acc2: null },
   },
 
   // ── Equipment Inventory ─────────────────────────────────────
-  // Flat array of equipment IDs the player owns (equipped items included).
-  // Duplicates = separate entries.
   inventory: [
     'iron_axe', 'iron_breastplate',
     'wooden_mace', 'padded_armor',
   ],
-
-  // Upgrade level per equipment ID (+0 through +10).
-  // Only tracked when level > 0 to keep save small.
   upgrades: {},
 
   // ── Crafting materials ──────────────────────────────────────
-  materials: null, // filled from defaultMaterials() on first load
+  materials: null,
 
   // ── Rewards ─────────────────────────────────────────────────
-  freePacks: [],   // pack ids granted as level rewards
+  freePacks: [],
 };
 
 // Exported mutable singleton — all importers share the same reference.
@@ -55,10 +51,11 @@ export function loadSave() {
     if (raw) {
       const parsed = JSON.parse(raw);
       const merged = { ...deepCloneDefault(), ...parsed };
-      // Ensure nested objects are properly merged
-      merged.charData  = { ...deepCloneDefault().charData,  ...parsed.charData };
-      merged.materials = { ...defaultMaterials(), ...parsed.materials };
-      merged.upgrades  = { ...parsed.upgrades };
+      merged.charData        = { ...deepCloneDefault().charData, ...parsed.charData };
+      merged.materials       = { ...defaultMaterials(), ...parsed.materials };
+      merged.upgrades        = { ...parsed.upgrades };
+      merged.dungeonsCleared = Array.isArray(parsed.dungeonsCleared) ? [...parsed.dungeonsCleared] : [];
+      merged.activeDungeon   = parsed.activeDungeon || null;
       Object.assign(save, merged);
     } else {
       Object.assign(save, deepCloneDefault());

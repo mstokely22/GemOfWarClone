@@ -53,34 +53,32 @@
 .back-btn:hover { background: var(--bg-card); }
 
 /* ══════════════════════════════════════════════════════════════
-   HOME SCREEN
+   HOME SCREEN  (game HUD style, no title)
 ══════════════════════════════════════════════════════════════ */
 #screen-home {
   position: relative;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
+  justify-content: stretch;
 }
 #home-bg {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 30%, #2a0050 0%, #0a0a1a 70%);
+  background: radial-gradient(ellipse at 50% 20%, #2a0050 0%, #0a0a1a 65%);
   z-index: 0;
 }
-#home-content {
+#home-top-bar {
   position: relative;
   z-index: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 32px;
-  padding: 40px 20px;
-  width: 100%;
-  max-width: 520px;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  background: rgba(0,0,0,.25);
 }
-#home-logo { text-align: center; }
-#home-gem-row { display: flex; gap: 12px; justify-content: center; margin-bottom: 12px; }
+#home-gem-row { display: flex; gap: 8px; }
 .hgem {
-  font-size: 2rem;
+  font-size: 1.5rem;
   animation: floatGem 3s ease-in-out infinite;
 }
 .hgem:nth-child(2) { animation-delay: .3s; }
@@ -89,114 +87,222 @@
 .hgem:nth-child(5) { animation-delay: 1.2s; }
 @keyframes floatGem {
   0%,100% { transform: translateY(0); }
-  50%      { transform: translateY(-8px); }
+  50%      { transform: translateY(-5px); }
 }
-#home-logo h1 {
-  font-size: clamp(2rem, 7vw, 3.4rem);
-  font-weight: 900;
-  letter-spacing: .1em;
-  background: linear-gradient(135deg, #fff 0%, #c77dff 50%, #7b2fff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin: 0;
-}
-#home-subtitle {
-  color: #a98bc5;
-  font-size: 1rem;
-  letter-spacing: .2em;
-  text-transform: uppercase;
-  margin-top: 6px;
-}
-#home-progress  { color: #ccc; font-size: .9rem; }
-#home-resource  { color: #ffd700; font-size: 1.1rem; font-weight: 700; }
+#home-resource  { color: #ffd700; font-size: 1rem; font-weight: 700; }
 #home-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  width: 100%;
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 10px;
+  padding: 10px;
 }
 .home-btn {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(255,255,255,.04);
+  border: 2px solid rgba(255,255,255,.1);
+  border-radius: 16px;
+  color: var(--text-main);
+  cursor: pointer;
+  padding: 12px 8px;
+  transition: border-color .15s, transform .1s, background .15s;
+  text-align: center;
+}
+.home-btn:hover, .home-btn:active {
+  border-color: var(--accent);
+  background: rgba(123,47,255,.15);
+  transform: scale(0.97);
+}
+.battle-btn  { border-color: rgba(255,80,80,.35);  }
+.heroes-btn  { border-color: rgba(255,200,50,.25);  }
+.packs-btn   { border-color: rgba(80,180,255,.25);  }
+.upgrade-btn { border-color: rgba(200,150,50,.25);  }
+.hbtn-icon  { font-size: 2.2rem; }
+.hbtn-label { font-size: 1rem; font-weight: 700; display: block; }
+.hbtn-sub   { font-size: .72rem; color: #aaa; display: block; }
+#home-progress {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  color: #aaa;
+  font-size: .78rem;
+  padding: 6px 20px 10px;
+  background: rgba(0,0,0,.3);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DUNGEON SELECT SCREEN
+══════════════════════════════════════════════════════════════ */
+#dungeon-select-scroll { flex: 1; overflow-y: auto; padding: 16px; }
+#dungeon-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+.dsel-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   background: var(--bg-card);
   border: 2px solid var(--border);
   border-radius: 14px;
-  color: var(--text-main);
+  padding: 14px 16px;
   cursor: pointer;
-  padding: 16px 22px;
-  transition: border-color .2s, transform .1s, box-shadow .2s;
-  text-align: left;
-  width: 100%;
+  transition: border-color .2s, transform .1s;
 }
-.home-btn:hover {
-  border-color: var(--accent);
-  transform: translateX(4px);
-  box-shadow: -4px 0 0 var(--accent);
+.dsel-card:not(.dsel-locked):hover { border-color: var(--accent); transform: scale(1.01); }
+.dsel-card.dsel-cleared  { border-color: #4caf50; }
+.dsel-card.dsel-active   { box-shadow: 0 0 12px rgba(255,215,0,.3); }
+.dsel-card.dsel-locked   { opacity: .45; cursor: default; }
+.dsel-icon  { font-size: 2.4rem; flex-shrink: 0; }
+.dsel-body  { flex: 1; min-width: 0; }
+.dsel-name  { font-size: 1rem; font-weight: 700; }
+.dsel-flavor { font-size: .78rem; color: #aaa; margin-top: 2px; }
+.dsel-diff  { font-size: .8rem; color: #c060ff; margin-top: 3px; }
+.dsel-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+.dsel-reward { font-size: .75rem; color: #ffd700; }
+.dsel-badge {
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: .72rem;
+  font-weight: 700;
 }
-.hbtn-icon  { font-size: 1.8rem; }
-.hbtn-label { font-size: 1.1rem; font-weight: 700; display: block; }
-.hbtn-sub   { font-size: .8rem; color: #aaa; display: block; margin-top: 2px; }
+.locked-badge { background: rgba(100,100,100,.3); color: #888; }
+.active-badge { background: rgba(255,215,0,.15); color: #ffd700; }
+.clear-badge  { background: rgba(76,175,80,.2); color: #7f7; }
+.avail-badge  { background: rgba(123,47,255,.25); color: #c77dff; }
 
 /* ══════════════════════════════════════════════════════════════
-   LEVEL MAP SCREEN
+   DUNGEON MAP SCREEN
 ══════════════════════════════════════════════════════════════ */
-#map-scroll { flex: 1; overflow-y: auto; padding: 24px 20px; }
-#map-nodes {
+.dungeon-map-header { flex-shrink: 0; }
+#dungeon-map-header-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+}
+#dmap-icon  { font-size: 1.4rem; }
+#dmap-title { font-size: 1rem; font-weight: 700; }
+
+#dmap-flash {
+  text-align: center;
+  padding: 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffd700;
+  background: rgba(255,215,0,.1);
+  animation: flashFade .6s ease-out;
+}
+#dmap-flash.hidden { display: none; }
+@keyframes flashFade {
+  from { opacity: 0; transform: scale(.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+#dmap-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 6px;
+  padding: 8px;
+  min-height: 0;
+}
+
+/* ── Room base ──────────────────────────────────────────── */
+.droom {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  max-width: 400px;
-  margin: 0 auto;
-}
-.map-node {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: var(--bg-card);
-  border: 2px solid var(--border);
-  border-radius: 14px;
-  padding: 14px 18px;
-  width: 100%;
-  cursor: pointer;
-  transition: border-color .2s, transform .1s;
-  margin-bottom: 6px;
-}
-.map-node:hover:not(.locked) { border-color: var(--accent); transform: scale(1.02); }
-.map-node.current   { border-color: #ffd700 !important; box-shadow: 0 0 12px rgba(255,215,0,.4); }
-.map-node.completed { border-color: #4caf50; }
-.map-node.locked    { opacity: .4; cursor: not-allowed; }
-.map-line { width: 2px; height: 20px; background: var(--border); margin: 0 auto; }
-.node-num {
-  width: 38px;
-  height: 38px;
-  background: var(--bg-mid);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  font-weight: 900;
-  font-size: 1rem;
-  border: 2px solid var(--border);
-  flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,.1);
+  border-radius: 12px;
+  background: var(--bg-card);
+  cursor: default;
+  transition: transform .1s, border-color .2s, box-shadow .2s;
+  padding: 4px 2px;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
 }
-.node-info          { flex: 1; }
-.node-name          { font-weight: 700; font-size: .95rem; }
-.node-enemies       { font-size: .78rem; color: #aaa; margin-top: 2px; }
-.node-stars         { font-size: 1.1rem; }
-.node-icon          { font-size: 1.4rem; }
-.node-reward-badge {
+.droom-icon  { font-size: clamp(.9rem, 2.5vw, 1.4rem); line-height: 1; }
+.droom-label { font-size: clamp(.55rem, 1.3vw, .7rem); color: #bbb; line-height: 1; text-align: center; }
+
+/* ── Room states ──────────────────────────────────────────── */
+.droom-cleared {
+  background: rgba(0,0,0,.3);
+  border-color: rgba(80,200,80,.3);
+  opacity: .55;
+}
+.droom-locked {
+  opacity: .2;
+  border-color: rgba(255,255,255,.05);
+}
+.droom-available {
+  cursor: pointer;
+  border-color: rgba(255,215,0,.55);
+  box-shadow: 0 0 8px rgba(255,215,0,.25);
+  animation: droomPulse 2s ease-in-out infinite;
+}
+.droom-available:hover {
+  transform: scale(1.06);
+  box-shadow: 0 0 14px rgba(255,215,0,.5);
+}
+@keyframes droomPulse {
+  0%,100% { box-shadow: 0 0 6px rgba(255,215,0,.2); }
+  50%     { box-shadow: 0 0 14px rgba(255,215,0,.5); }
+}
+
+/* ── Room type accents ────────────────────────────────────── */
+.droom-start   { border-color: rgba(100,200,100,.4); }
+.droom-elite   { border-color: rgba(200,80,80,.4); }
+.droom-elite.droom-available {
+  border-color: rgba(255,100,100,.7);
+  animation: droomElitePulse 2s ease-in-out infinite;
+}
+@keyframes droomElitePulse {
+  0%,100% { box-shadow: 0 0 6px rgba(255,80,80,.25); }
+  50%     { box-shadow: 0 0 14px rgba(255,80,80,.5); }
+}
+.droom-treasure { border-color: rgba(80,180,255,.4); }
+.droom-treasure.droom-available {
+  border-color: rgba(80,200,255,.7);
+  box-shadow: 0 0 10px rgba(80,200,255,.3);
+  animation: none;
+}
+.droom-boss { border-color: rgba(180,50,200,.5); }
+.droom-boss.droom-available {
+  border-color: rgba(220,80,255,.8);
+  animation: droomBossPulse 1.5s ease-in-out infinite;
+}
+@keyframes droomBossPulse {
+  0%,100% { box-shadow: 0 0 10px rgba(200,50,255,.4); }
+  50%     { box-shadow: 0 0 20px rgba(220,80,255,.7); }
+}
+
+/* ── Door indicators ──────────────────────────────────────── */
+.droom-door {
   position: absolute;
-  top: -8px;
-  right: 12px;
-  background: var(--accent);
-  color: #fff;
-  border-radius: 10px;
-  padding: 2px 8px;
-  font-size: .7rem;
-  font-weight: 700;
+  font-size: .5rem;
+  color: rgba(255,255,255,.3);
+  line-height: 1;
 }
+.droom-door-n { top: 1px;  left: 50%; transform: translateX(-50%); }
+.droom-door-s { bottom: 1px; left: 50%; transform: translateX(-50%); }
+.droom-door-e { right: 2px; top: 50%; transform: translateY(-50%); }
+.droom-door-w { left: 2px;  top: 50%; transform: translateY(-50%); }
 
 /* ══════════════════════════════════════════════════════════════
    TEAM BUILDER SCREEN
@@ -221,35 +327,52 @@
   letter-spacing: .1em;
   margin-bottom: 4px;
 }
-#team-slots { display: flex; flex-direction: column; gap: 10px; }
+#team-slots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .team-slot {
   background: var(--bg-card);
   border: 2px dashed var(--border);
   border-radius: 12px;
-  padding: 12px 16px;
+  padding: 8px 10px;
   cursor: pointer;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 6px;
   transition: border-color .2s, background .2s;
-  min-height: 66px;
+  min-height: 0;
+  position: relative;
 }
 .team-slot:hover        { border-color: var(--accent); background: #1a1030; }
-.team-slot.filled       { border-style: solid; border-color: var(--accent); }
-.team-slot.empty-slot   { justify-content: center; color: #666; font-size: .9rem; }
-.slot-emoji             { font-size: 1.8rem; }
-.slot-info .slot-name   { font-weight: 700; font-size: .95rem; }
-.slot-info .slot-stats  { font-size: .75rem; color: #aaa; margin-top: 2px; }
-.slot-clear {
-  margin-left: auto;
+.team-slot:not(.empty)  { border-style: solid; border-color: #c8a040; }
+.team-slot.empty        { justify-content: center; align-items: center; color: #666; font-size: .85rem; min-height: 80px; }
+
+/* Card body takes remaining width, remove button sticks right */
+.ts-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ts-card-body .hc-top-row  { gap: 6px; }
+.ts-card-body .hc-emoji    { font-size: 1.4rem; }
+.ts-card-body .hc-name     { font-size: .78rem; }
+.ts-card-body .hc-class    { font-size: .62rem; }
+.ts-card-body .hc-xp-bar   { height: 3px; margin-top: 2px; }
+.ts-card-body .hc-stat-row { font-size: .68rem; gap: 6px; }
+.ts-card-body .hc-equip-row { gap: 4px; }
+.ts-card-body .hc-equip-item { font-size: .62rem; padding: 1px 5px; }
+.ts-remove {
+  flex-shrink: 0;
   background: transparent;
   border: none;
-  color: #888;
-  font-size: 1.1rem;
+  color: #666;
+  font-size: .9rem;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  transition: color .15s, background .15s;
+  align-self: flex-start;
 }
-.slot-clear:hover { color: #ff5555; }
+.ts-remove:hover { color: #ff5555; background: rgba(255,85,85,.12); }
+.slot-plus {
+  font-size: 1.4rem;
+  margin-right: 4px;
+  color: #555;
+}
 #launch-battle-btn {
   margin-top: 8px;
   background: linear-gradient(135deg, var(--accent), #9b00ff);
@@ -331,43 +454,122 @@
 .picker-card .pc-emoji  { font-size: 2rem; }
 .picker-card .pc-name   { font-size: .8rem; font-weight: 700; margin-top: 4px; }
 .picker-card .pc-stats  { font-size: .7rem; color: #aaa; margin-top: 2px; }
+/* Equipment picker inner elements */
+.picker-card .picker-emoji  { font-size: 1.8rem; }
+.picker-card .picker-name   { font-size: .82rem; font-weight: 700; margin-top: 4px; }
+.picker-card .picker-rarity { font-size: .7rem; opacity: .85; margin-bottom: 2px; }
+.picker-card.used { opacity: .5; cursor: not-allowed; }
 
 /* ══════════════════════════════════════════════════════════════
    HEROES COLLECTION SCREEN
 ══════════════════════════════════════════════════════════════ */
-#heroes-scroll { flex: 1; overflow-y: auto; padding: 20px; }
+#heroes-scroll { flex: 1; overflow-y: auto; padding: 16px; }
 #heroes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 16px;
-  max-width: 800px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  max-width: 900px;
   margin: 0 auto;
 }
 .hero-card {
   background: var(--bg-card);
   border: 2px solid var(--border);
   border-radius: 14px;
-  padding: 16px 12px;
-  text-align: center;
+  padding: 12px 14px;
   position: relative;
   transition: transform .15s;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.hero-card:hover { transform: translateY(-3px); }
-.hero-card.rarity-common    { border-color: #7a7a8a; }
-.hero-card.rarity-uncommon  { border-color: #2e8b2e; }
-.hero-card.rarity-rare      { border-color: #2a6bcc; }
-.hero-card.rarity-epic      { border-color: #9b00ff; }
-.hero-card.rarity-legendary { border-color: #ffd700; box-shadow: 0 0 12px rgba(255,215,0,.3); }
-.hero-card.locked           { opacity: .4; filter: grayscale(1); }
-.hero-card .hc-emoji        { font-size: 2.4rem; }
-.hero-card .hc-name         { font-weight: 700; font-size: .95rem; margin: 6px 0 2px; }
-.hero-card .hc-rarity       { font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; color: #aaa; }
-.hero-card.rarity-legendary .hc-rarity { color: #ffd700; }
-.hero-card.rarity-epic      .hc-rarity { color: #c77dff; }
-.hero-card.rarity-rare      .hc-rarity { color: #5b9cf6; }
-.hero-card .hc-stats        { font-size: .78rem; color: #bbb; line-height: 1.6; }
-.hero-card .hc-spell-name   { font-size: .8rem; font-weight: 700; color: var(--accent); margin-top: 6px; }
-.hero-card .hc-spell-desc   { font-size: .72rem; color: #aaa; margin-top: 2px; line-height: 1.4; }
+.hero-card:hover { transform: translateY(-2px); }
+.hero-card.locked { opacity: .4; filter: grayscale(1); }
+
+/* ── Top row: emoji + name/class/xp ───────────────────── */
+.hc-top-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hc-emoji { font-size: 2rem; flex-shrink: 0; }
+.locked-emoji { font-size: 1.6rem; opacity: .5; }
+.hc-title-block { flex: 1; min-width: 0; }
+.hc-name  { font-weight: 700; font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hc-class { font-size: .7rem; color: #aaa; }
+.hc-xp-bar {
+  height: 4px;
+  background: #1a0a2e;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 3px;
+}
+.hc-xp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #c77dff);
+  border-radius: 3px;
+  transition: width .3s;
+}
+
+/* ── Stats row ────────────────────────────────────────── */
+.hc-stat-row {
+  display: flex;
+  gap: 12px;
+  font-size: .75rem;
+  color: #ccc;
+}
+.hc-stat-row span {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* ── Equipment row ────────────────────────────────────── */
+.hc-equip-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.hc-equip-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: .7rem;
+  color: #bbb;
+  background: rgba(255,255,255,.04);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+.hc-empty { color: #555; }
+.hc-mana-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 4px rgba(255,255,255,.2);
+}
+
+/* ── Manage gear button ───────────────────────────────── */
+.hero-equip-btn {
+  align-self: flex-start;
+  background: rgba(123,47,255,.2);
+  border: 1px solid var(--accent);
+  color: #c77dff;
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-size: .72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+}
+.hero-equip-btn:hover { background: rgba(123,47,255,.4); }
+
+/* ── Locked card ──────────────────────────────────────── */
+.hc-lock-msg {
+  font-size: .72rem;
+  color: #666;
+  padding: 2px 0;
+}
 .hc-lock-overlay {
   position: absolute;
   inset: 0;
@@ -377,6 +579,13 @@
   font-size: 1.8rem;
   border-radius: 12px;
 }
+
+/* ── Old class-based styles (keep for rarity variants) ── */
+.hero-card.rarity-common    { border-color: #7a7a8a; }
+.hero-card.rarity-uncommon  { border-color: #2e8b2e; }
+.hero-card.rarity-rare      { border-color: #2a6bcc; }
+.hero-card.rarity-epic      { border-color: #9b00ff; }
+.hero-card.rarity-legendary { border-color: #ffd700; box-shadow: 0 0 12px rgba(255,215,0,.3); }
 
 /* ══════════════════════════════════════════════════════════════
    CARD PACKS SCREEN
@@ -534,7 +743,32 @@
   transition: transform .1s;
 }
 #gacha-collect-btn:hover        { transform: scale(1.04); }
+#gacha-collect-btn:disabled     { opacity: .4; pointer-events: none; }
 #gacha-collect-btn:not(.hidden) { display: block; }
+
+/* ── compact gacha for short viewports (phone landscape) ── */
+@media (max-height: 440px) {
+  #gacha-body {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  #gacha-title { font-size: .8rem; }
+  #gacha-card-wrap {
+    width: 180px;
+    height: 220px;
+  }
+  #gacha-card-back-inner { font-size: 2.4rem; }
+  #gacha-card-front { padding: 10px; gap: 3px; }
+  .gacha-hero-e     { font-size: 1.8rem; }
+  .gacha-hero-n     { font-size: .9rem; }
+  .gacha-hero-r     { font-size: .65rem; }
+  .gacha-hero-stats { font-size: .65rem; line-height: 1.3; }
+  .gacha-hero-spell { font-size: .7rem; }
+  .gacha-hero-desc  { font-size: .6rem; }
+  .gacha-badge      { top: 6px; right: 6px; font-size: .6rem; padding: 2px 6px; }
+  #gacha-result-info { font-size: .75rem; }
+  #gacha-collect-btn { padding: 8px 28px; font-size: .85rem; }
+}
 
 /* ══════════════════════════════════════════════════════════════
    VICTORY REWARDS SCREEN
@@ -683,21 +917,22 @@
   #team-col-right { display: none; }   /* hide enemy preview to save space */
 }
 
-/* Map nodes: tighter on small screens */
+/* Dungeon map: tighter on very small screens */
 @media (max-width: 480px) {
-  #map-nodes { padding: 0 4px; }
-  .node-num  { width: 30px; height: 30px; font-size: .8rem; }
+  #dungeon-canvas { padding: 4px; gap: 3px; }
+  .room-icon  { font-size: .8rem; }
+  .room-label { font-size: .5rem; }
+  .room-gold  { display: none; }
 }
 
 /* Home: reduce gap on short screens */
 @media (max-height: 600px) {
-  #home-content { gap: 16px; padding: 20px; }
   #home-gem-row { display: none; }
 }
 
-/* Hero grid: 2 columns on narrow */
+/* Narrow screens: hero grid stacks to 1 col */
 @media (max-width: 420px) {
-  #heroes-grid { grid-template-columns: repeat(2, 1fr); }
+  #heroes-grid { grid-template-columns: 1fr; }
   #packs-grid  { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -715,64 +950,16 @@
   .back-btn { padding: 4px 10px; font-size: 0.8rem; }
 
   /* ---- HOME ---- */
-  #home-content {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    gap: 20px;
-    padding: 10px 24px;
-    max-width: 100%;
-    overflow-y: hidden;
-  }
-  #home-logo {
-    flex-shrink: 0;
-    width: 220px;
-    text-align: center;
-  }
-  #home-logo h1   { font-size: 1.5rem; margin-bottom: 4px; }
-  #home-logo p    { font-size: 0.75rem; }
-  #home-gem-row   { display: none; }
-  #home-nav {
-    flex-direction: column;
-    gap: 8px;
-    flex: 1;
-    max-width: 320px;
-  }
-  .home-btn { padding: 10px 14px; }
-  .hbtn-sub { font-size: 0.65rem; }
+  /* 2×2 grid already defined; just tweak spacing for very small screens */
+  #home-top-bar { padding: 6px 12px; }
+  .hbtn-icon  { font-size: 1.8rem; }
+  .hbtn-label { font-size: .9rem; }
+  .hbtn-sub   { font-size: .62rem; }
 
-  /* ---- MAP ---- */
-  #map-scroll {
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 8px 20px;
-    flex: 1;
-  }
-  #map-nodes {
-    flex-direction: row;
-    max-width: none;
-    width: max-content;
-    align-items: center;
-    gap: 0;
-    padding: 8px 0;
-  }
-  .map-node {
-    flex-direction: column;
-    width: 110px;
-    min-height: unset;
-    padding: 10px 6px;
-    text-align: center;
-  }
-  .map-line {
-    width: 28px;
-    height: 3px;
-    flex-shrink: 0;
-    border-radius: 2px;
-    background: var(--border);
-    align-self: center;
-  }
-  .map-info { display: none; }
-  .map-label { font-size: 0.75rem; }
+  /* ---- DUNGEON MAP ---- */
+  #dungeon-map-legend { padding: 3px 10px; gap: 10px; }
+  .legend-item { font-size: .65rem; }
+  #dungeon-canvas { padding: 6px; gap: 4px; }
 
   /* ---- HEROES ---- */
   #heroes-scroll {
@@ -781,14 +968,14 @@
     flex: 1;
   }
   #heroes-grid {
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
   }
   .hero-card {
-    padding: 10px 8px;
+    padding: 8px 10px;
   }
-  .hero-icon  { font-size: 2rem; }
-  .hero-name  { font-size: 0.8rem; }
-  .hero-rarity, .hero-stats { font-size: 0.7rem; }
+  .hc-emoji { font-size: 1.5rem; }
+  .hc-name  { font-size: .78rem; }
+  .hc-stat-row { font-size: .68rem; gap: 6px; }
 
   /* ---- PACKS ---- */
   #packs-body {
@@ -819,9 +1006,10 @@
     padding: 6px 12px;
     gap: 8px;
   }
-  .slot-emoji  { font-size: 1.3rem; }
-  .slot-name   { font-size: 0.85rem; }
-  .slot-stats  { font-size: 0.7rem; }
+  .team-slot .hc-emoji { font-size: 1.3rem; }
+  .team-slot .hc-name  { font-size: .8rem; }
+  .team-slot .hc-stat-row { font-size: .65rem; gap: 6px; }
+  .team-slot .hc-equip-row { gap: 6px; }
   #launch-battle-btn { padding: 10px; font-size: 0.95rem; }
 }
 
@@ -912,6 +1100,8 @@
 .equip-slot.locked { opacity: .5; }
 .equip-slot-label { font-size: .7rem; color: #888; }
 .equip-slot-name  { font-size: .85rem; font-weight: 600; }
+.equip-stat-line  { font-size: .78rem; color: #aad4ff; margin: 3px 0 1px; }
+.equip-skill-line { font-size: .75rem; color: #ccc; font-style: italic; margin-bottom: 4px; }
 .equip-slot-btns  { display: flex; gap: 6px; margin-top: auto; }
 .equip-change-btn, .equip-unequip-btn {
   background: var(--bg-deep);
@@ -936,10 +1126,7 @@
   margin: 3px 4px 3px 0;
 }
 
-/* ── Team slot v3 extras ─────────── */
-.slot-class      { font-size: .75rem; color: #aaa; }
-.slot-equip-row  { display: flex; gap: 8px; font-size: 1rem; margin-top: 2px; }
-.slot-equip      { cursor: default; }
+/* ── Team slot v3 extras (deprecated — now uses .hc-* classes) ── */
 
 /* ══════════════════════════════════════════════════════════════
    v3 — UPGRADE / FORGE SCREEN
@@ -971,31 +1158,104 @@
 }
 #upgrade-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+/* ── Filter bar ─────────────────────────────────────────── */
+#upgrade-filter-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.upg-filter-btn {
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: #aaa;
+  padding: 5px 14px;
+  font-size: .78rem;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.upg-filter-btn:hover { border-color: var(--accent); color: #fff; }
+.upg-filter-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 700;
 }
 .upgrade-card {
   position: relative;
   background: var(--bg-card);
   border: 2px solid var(--border);
   border-radius: 14px;
-  padding: 14px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.upg-icon  { font-size: 2rem; text-align: center; }
-.upg-name  { font-weight: 700; font-size: .95rem; text-align: center; }
-.upg-type  { font-size: .75rem; color: #888; text-align: center; }
-.upg-cost  { font-size: .78rem; display: flex; flex-wrap: wrap; gap: 6px; }
-.upg-max   { font-size: .8rem; color: #ffd700; text-align: center; }
+/* ── Header row: icon + name + type inline ──────────────── */
+.upg-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.upg-icon  { font-size: 1.4rem; flex-shrink: 0; }
+.upg-header-text { min-width: 0; }
+.upg-name  { font-weight: 700; font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.upg-type  { font-size: .68rem; color: #888; display: flex; align-items: center; gap: 3px; }
+.upg-mana-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 4px rgba(255,255,255,.2);
+}
+.upg-spell-desc {
+  font-size: .68rem;
+  color: #aaa;
+  font-style: italic;
+  line-height: 1.3;
+  padding: 0 2px;
+}
+/* ── Stats comparison row ───────────────────────────────── */
+.upg-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,.03);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.upg-stats-current, .upg-stats-next { flex: 1; min-width: 0; }
+.upg-stats-label {
+  font-size: .6rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: 2px;
+}
+.upg-stats-vals { font-size: .72rem; color: #ddd; white-space: nowrap; }
+.upg-stats-next .upg-stats-vals { color: #8f8; }
+.upg-stats-arrow { color: #ffd700; font-size: .9rem; flex-shrink: 0; }
+.upg-max   { font-size: .75rem; color: #ffd700; }
+/* ── Actions row ────────────────────────────────────────── */
+.upg-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.upg-cost  { font-size: .72rem; display: flex; flex-wrap: wrap; gap: 4px; margin-right: auto; }
 .upg-btn {
   background: var(--accent);
   color: #fff;
   border: none;
   border-radius: 8px;
-  padding: 6px 10px;
-  font-size: .82rem;
+  padding: 5px 10px;
+  font-size: .78rem;
   cursor: pointer;
   font-weight: 700;
 }
@@ -1006,7 +1266,7 @@
   color: #e74c3c;
   border-radius: 8px;
   padding: 4px 10px;
-  font-size: .78rem;
+  font-size: .72rem;
   cursor: pointer;
 }
 .dismantle-btn:hover { background: #e74c3c; color: #fff; }

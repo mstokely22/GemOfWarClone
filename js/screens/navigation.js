@@ -7,7 +7,7 @@ export let currentScreen = 'home';
 
 export function updateGoldDisplays() {
   const g = save.gold;
-  ['hud-gold','home-gold','map-gold','team-gold','heroes-gold','packs-gold','upgrade-gold'].forEach(id => {
+  ['hud-gold','home-gold','dmap-gold','team-gold','heroes-gold','packs-gold','upgrade-gold','dungeon-select-gold'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = g;
   });

@@ -3,36 +3,42 @@
 // ============================================================
 import { save, writeSave }            from '../state/save.js';
 import { assembleTroop }              from '../state/gameState.js';
-import { LEVELS }                     from '../data/levels.js';
 import { CHAR_BY_ID, CHARACTERS }     from '../data/characters.js';
 import { CLASS_BY_ID }                from '../data/classes.js';
 import { EQUIP_BY_ID }               from '../data/equipment.js';
-import { levelFromXp }                from '../data/leveling.js';
+import { levelFromXp, xpProgress }    from '../data/leveling.js';
+import { weaponUpgradeBonus, armorUpgradeBonus } from '../data/materials.js';
 import { RARITY_COLORS }             from '../data/constants.js';
 import { showScreen }                 from './navigation.js';
 
-export let pendingLevelIdx = 0;
 let pickerSlot = -1;
-let equipSlotTarget = null; // { charId, slot: 'weapon'|'armor'|'acc1'|'acc2' }
 
-export function goToTeamBuilder(levelIdx) {
-  pendingLevelIdx = levelIdx;
+export function goToTeamBuilder() {
   renderTeamBuilder();
   showScreen('team');
 }
 
 export function renderTeamBuilder() {
   document.getElementById('hud-gold').textContent = save.gold;
-  const lvl = LEVELS[pendingLevelIdx];
+  const battle = save.activeDungeon?.pendingBattle;
+
   document.getElementById('team-level-title').textContent =
-    `Level ${pendingLevelIdx + 1} — ${lvl.label}`;
+    battle ? `${DUNGEON_NAME()} — ${battle.label}` : 'Team Builder';
 
   const preview = document.getElementById('team-enemy-preview');
-  preview.innerHTML = lvl.enemies.map(e =>
+  const enemies = battle?.enemies || [];
+  preview.innerHTML = enemies.map(e =>
     `<div class="enemy-chip">${e.emoji} ${e.name}</div>`
-  ).join('');
+  ).join('') || '<div class="enemy-chip">No enemies</div>';
 
   renderTeamSlots();
+}
+
+function DUNGEON_NAME() {
+  const id  = save.activeDungeon?.dungeonId;
+  if (!id) return 'Dungeon';
+  // Lazy inline name without full import to avoid circular deps
+  return id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 export function renderTeamSlots() {
@@ -51,23 +57,60 @@ export function renderTeamSlots() {
     if (char) {
       const weapon = cData?.weapon ? EQUIP_BY_ID[cData.weapon] : null;
       const armor  = cData?.armor  ? EQUIP_BY_ID[cData.armor]  : null;
+      const acc1   = cData?.acc1   ? EQUIP_BY_ID[cData.acc1]   : null;
+      const acc2   = cData?.acc2   ? EQUIP_BY_ID[cData.acc2]   : null;
+      const prog   = xpProgress(cData?.xp || 0);
+      const wUpg   = save.upgrades[cData?.weapon] || 0;
+      const aUpg   = save.upgrades[cData?.armor]  || 0;
+
+      // Compute effective stats (same logic as roster)
+      const growth = cls.statGrowth || {};
+      let atk  = (cls.baseAttack  || 0) + Math.floor((level - 1) * (growth.attack  || 0));
+      let arm  = (cls.baseArmor   || 0) + Math.floor((level - 1) * (growth.armor   || 0));
+      let hp   = (cls.baseMaxLife || 30) + Math.floor((level - 1) * (growth.maxLife || 0));
+      if (weapon) atk += (weapon.baseAttackBonus || 0) + weaponUpgradeBonus(weapon.rarity, wUpg).attack;
+      if (armor) {
+        const aBonus = armorUpgradeBonus(armor.rarity, aUpg);
+        arm += (armor.baseArmorBonus || 0) + aBonus.armor;
+        hp  += (armor.baseLifeBonus  || 0) + aBonus.maxLife;
+      }
+      if (acc1?.stats) { atk += acc1.stats.attack || 0; arm += acc1.stats.armor || 0; hp += acc1.stats.maxLife || 0; }
+      if (acc2?.stats) { atk += acc2.stats.attack || 0; arm += acc2.stats.armor || 0; hp += acc2.stats.maxLife || 0; }
+
+      const manaColor = weapon?.manaColor || null;
+      const manaHtml  = manaColor
+        ? `<span class="hc-mana-dot" style="background:var(--${manaColor})" title="${manaColor} mana"></span>`
+        : '';
+
       div.innerHTML = `
-        <div class="slot-emoji">${cls.emoji}</div>
-        <div class="slot-name">${char.name}</div>
-        <div class="slot-class">${cls.name} Lv.${level}</div>
-        <div class="slot-equip-row">
-          <span class="slot-equip" title="${weapon ? weapon.name : 'No weapon'}">${weapon ? '⚔️' : '➖'}</span>
-          <span class="slot-equip" title="${armor ? armor.name : 'No armor'}">${armor ? '🛡' : '➖'}</span>
+        <div class="ts-card-body">
+          <div class="hc-top-row">
+            <div class="hc-emoji">${cls.emoji}</div>
+            <div class="hc-title-block">
+              <div class="hc-name">${char.name}</div>
+              <div class="hc-class">${cls.name} — Lv.${level}</div>
+              <div class="hc-xp-bar"><div class="hc-xp-fill" style="width:${prog.pct}%"></div></div>
+            </div>
+          </div>
+          <div class="hc-stat-row">
+            <span title="Attack">⚔️ ${atk}</span>
+            <span title="Armor">🛡 ${arm}</span>
+            <span title="HP">❤️ ${hp}</span>
+          </div>
+          <div class="hc-equip-row">
+            <span class="hc-equip-item">${weapon ? `${manaHtml} ${weapon.icon || '⚔️'} ${weapon.name}` : '<span class="hc-empty">No weapon</span>'}</span>
+            <span class="hc-equip-item">${armor  ? `${armor.icon || '🛡'} ${armor.name}` : '<span class="hc-empty">No armor</span>'}</span>
+          </div>
         </div>
-        <div class="slot-remove" data-slot="${i}">✕</div>
+        <div class="ts-remove" data-slot="${i}" title="Remove">✕</div>
       `;
-      div.querySelector('.slot-remove').addEventListener('click', e => {
+      div.querySelector('.ts-remove').addEventListener('click', e => {
         e.stopPropagation();
         clearSlot(i);
       });
       div.addEventListener('click', () => openCharPicker(i));
     } else {
-      div.innerHTML = `<div class="slot-plus">+</div><div class="slot-name">Empty</div>`;
+      div.innerHTML = `<div class="slot-plus">+</div><div class="hc-name" style="color:#666">Empty</div>`;
       div.addEventListener('click', () => openCharPicker(i));
     }
     slots.appendChild(div);
@@ -131,11 +174,11 @@ export function launchBattle() {
     alert('Add at least one character to your team!');
     return;
   }
+  const battle = save.activeDungeon?.pendingBattle;
+  if (!battle) { alert('No room selected!'); return; }
 
-  // Assemble player troops from class + equipment data
   const playerTeam = teamIds.map(id => assembleTroop(id));
-  const lvl        = LEVELS[pendingLevelIdx];
-  const enemyTeam  = lvl.enemies;
+  const enemyTeam  = battle.enemies;
 
   showScreen('battle');
   requestAnimationFrame(() => {

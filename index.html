@@ -22,57 +22,69 @@
 ══════════════════════════════════════════ -->
 <div id="screen-home" class="screen">
   <div id="home-bg"></div>
-  <div id="home-content">
-    <div id="home-logo">
-      <div id="home-gem-row">
-        <span class="hgem red">🔥</span>
-        <span class="hgem blue">💧</span>
-        <span class="hgem green">🌿</span>
-        <span class="hgem yellow">⚡</span>
-        <span class="hgem purple">✨</span>
-      </div>
-      <h1>GEMS OF COMBAT</h1>
-      <div id="home-subtitle">Match · Cast · Conquer</div>
+  <div id="home-top-bar">
+    <div id="home-gem-row">
+      <span class="hgem red">🔥</span>
+      <span class="hgem blue">💧</span>
+      <span class="hgem green">🌿</span>
+      <span class="hgem yellow">⚡</span>
+      <span class="hgem purple">✨</span>
     </div>
-    <div id="home-progress"></div>
     <div id="home-resource">💰 <span id="home-gold">0</span>g</div>
-    <nav id="home-nav">
-      <button id="btn-battle" class="home-btn battle-btn">
-        <span class="hbtn-icon">⚔️</span>
-        <span class="hbtn-label">Battle</span>
-        <span class="hbtn-sub">Choose your level</span>
-      </button>
-      <button id="btn-heroes" class="home-btn heroes-btn">
-        <span class="hbtn-icon">🧑</span>
-        <span class="hbtn-label">Roster</span>
-        <span class="hbtn-sub">Manage characters</span>
-      </button>
-      <button id="btn-packs" class="home-btn packs-btn">
-        <span class="hbtn-icon">📦</span>
-        <span class="hbtn-label">Equipment Packs</span>
-        <span class="hbtn-sub">Roll for gear</span>
-      </button>
-      <button id="btn-upgrade" class="home-btn upgrade-btn">
-        <span class="hbtn-icon">🔨</span>
-        <span class="hbtn-label">Forge</span>
-        <span class="hbtn-sub">Upgrade &amp; dismantle</span>
-      </button>
-    </nav>
+  </div>
+  <nav id="home-nav">
+    <button id="btn-battle" class="home-btn battle-btn">
+      <span class="hbtn-icon">⚔️</span>
+      <span class="hbtn-label">Dungeons</span>
+      <span class="hbtn-sub">Enter &amp; explore</span>
+    </button>
+    <button id="btn-heroes" class="home-btn heroes-btn">
+      <span class="hbtn-icon">🧑</span>
+      <span class="hbtn-label">Roster</span>
+      <span class="hbtn-sub">Manage characters</span>
+    </button>
+    <button id="btn-packs" class="home-btn packs-btn">
+      <span class="hbtn-icon">📦</span>
+      <span class="hbtn-label">Equipment Packs</span>
+      <span class="hbtn-sub">Roll for gear</span>
+    </button>
+    <button id="btn-upgrade" class="home-btn upgrade-btn">
+      <span class="hbtn-icon">🔨</span>
+      <span class="hbtn-label">Forge</span>
+      <span class="hbtn-sub">Upgrade &amp; dismantle</span>
+    </button>
+  </nav>
+  <div id="home-progress"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     DUNGEON SELECT SCREEN
+══════════════════════════════════════════ -->
+<div id="screen-dungeon-select" class="screen hidden">
+  <div class="screen-header">
+    <button class="back-btn" id="dungeon-select-back-btn">← Home</button>
+    <h2>Choose Dungeon</h2>
+    <div class="header-gold">💰 <span id="dungeon-select-gold">0</span>g</div>
+  </div>
+  <div id="dungeon-select-scroll">
+    <div id="dungeon-list"></div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════
-     LEVEL MAP SCREEN
+     DUNGEON MAP SCREEN
 ══════════════════════════════════════════ -->
-<div id="screen-map" class="screen hidden">
-  <div class="screen-header">
-    <button class="back-btn" id="map-back-btn">← Home</button>
-    <h2>World Map</h2>
-    <div class="header-gold">💰 <span id="map-gold">0</span>g</div>
+<div id="screen-dungeon-map" class="screen hidden">
+  <div class="screen-header dungeon-map-header">
+    <button class="back-btn" id="dmap-back-btn">← Dungeons</button>
+    <div id="dungeon-map-header-center">
+      <span id="dmap-icon">⚔</span>
+      <span id="dmap-title">Dungeon</span>
+    </div>
+    <div class="header-gold">💰 <span id="dmap-gold">0</span>g</div>
   </div>
-  <div id="map-scroll">
-    <div id="map-nodes"></div>
-  </div>
+  <div id="dmap-flash" class="hidden"></div>
+  <div id="dmap-grid"></div>
 </div>
 
 <!-- ═══════════════════════════════════════
@@ -80,7 +92,7 @@
 ══════════════════════════════════════════ -->
 <div id="screen-team" class="screen hidden">
   <div class="screen-header">
-    <button class="back-btn" id="team-back-btn">← Map</button>
+    <button class="back-btn" id="team-back-btn">← Dungeon</button>
     <h2 id="team-level-title">Level 1</h2>
     <div class="header-gold">💰 <span id="team-gold">0</span>g</div>
   </div>
@@ -146,18 +158,6 @@
       <div id="enemy-panel" class="team-panel">
         <div class="panel-label">Enemy Team</div>
         <div id="enemy-troops" class="troops-list"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Battle Overlay (victory/defeat) -->
-  <div id="overlay" class="hidden">
-    <div id="overlay-content">
-      <div id="overlay-title"></div>
-      <div id="overlay-msg"></div>
-      <div id="overlay-btns">
-        <button id="overlay-quit-btn">🗺 Return to Map</button>
-        <button id="overlay-retry-btn">🔄 Retry</button>
       </div>
     </div>
   </div>

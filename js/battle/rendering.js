@@ -46,7 +46,6 @@ export function renderPanel(containerId, team, isPlayer) {
           <div class="card-portrait">${portrait}</div>
           <div class="card-title-block">
             <div class="troop-name">${troop.name}</div>
-            <div class="troop-rarity" style="color:var(--${troop.color})">${rarity.toUpperCase()}</div>
           </div>
         </div>
         <div class="troop-stats">
@@ -55,8 +54,13 @@ export function renderPanel(containerId, team, isPlayer) {
           <span title="Life">${iconHeart()} ${troop.life}/${troop.maxLife}</span>
         </div>
         <div class="hp-bar-bg"><div class="hp-bar-fill" style="width:${hpPct}%"></div></div>
-        <div class="mana-label">${troop.spell} (${troop.mana}/${troop.manaCost})</div>
-        <div class="mana-bar-bg"><div class="mana-bar-fill ${troop.color}" style="width:${manaPct}%"></div></div>
+        <div class="mana-row">
+          <div class="mana-color-dot" style="background:var(--${troop.color})"></div>
+          <div class="mana-bar-wrap">
+            <div class="mana-label">${troop.spell} (${troop.mana}/${troop.manaCost})</div>
+            <div class="mana-bar-bg"><div class="mana-bar-fill ${troop.color}" style="width:${manaPct}%"></div></div>
+          </div>
+        </div>
         ${canCast ? '<div class="cast-hint">&#9654; CAST</div>' : ''}
       </div>
     `;

@@ -193,13 +193,16 @@ export function checkGameOver() {
 }
 
 function showOverlay(title, msg) {
-  document.getElementById('overlay-title').textContent = title;
-  document.getElementById('overlay-msg').textContent   = msg;
-  document.getElementById('overlay').classList.remove('hidden');
   const won = title.includes('VICTORY');
   window._lastBattleWon = won;
+  // Skip the in-battle overlay — the meta-game victory/defeat screen handles it
   if (typeof window.onBattleEnd === 'function') {
     setTimeout(() => window.onBattleEnd(won), 1200);
+  } else {
+    // Fallback: show the old overlay if no meta handler is wired
+    document.getElementById('overlay-title').textContent = title;
+    document.getElementById('overlay-msg').textContent   = msg;
+    document.getElementById('overlay').classList.remove('hidden');
   }
 }
 
@@ -258,12 +261,16 @@ export function processMatches(matched, isPlayer) {
         if (state.grantExtra) {
           addBroadcast('⭐ EXTRA TURN!', 'bc-extra');
         }
+
+        // Clear busy BEFORE render on extra turn so spell buttons
+        // are immediately clickable when mana is full.
+        if (isPlayer && state.grantExtra) state.busy = false;
+
         renderTeams();
         renderTurnIndicator();
 
         if (isPlayer && state.grantExtra) {
-          // Player keeps the turn
-          state.busy = false;
+          // Player keeps the turn — busy already cleared above
           if (checkDeadlock()) addBroadcast('🔄 RESHUFFLED', 'bc-system');
           startHintTimer();
           return;

@@ -98,7 +98,9 @@ export function openPackAnimation(packId) {
   const cardWrap = document.getElementById('gacha-card-wrap');
   cardWrap.classList.remove('flipped');
   document.getElementById('gacha-result-info').classList.add('hidden');
-  document.getElementById('gacha-collect-btn').classList.add('hidden');
+  const collectBtn = document.getElementById('gacha-collect-btn');
+  collectBtn.classList.add('hidden');
+  collectBtn.disabled = true;
   document.getElementById('gacha-pack-name').textContent = pack.name;
 
   document.getElementById('gacha-card-back').style.background =
@@ -147,7 +149,9 @@ export function revealGachaCard(equip, isNew) {
   cardWrap.classList.add('flipped');
   setTimeout(() => {
     infoEl.classList.remove('hidden');
-    document.getElementById('gacha-collect-btn').classList.remove('hidden');
+    const collectBtn = document.getElementById('gacha-collect-btn');
+    collectBtn.classList.remove('hidden');
+    collectBtn.disabled = false;
   }, 600);
 }
 

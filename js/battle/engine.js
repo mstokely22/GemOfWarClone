@@ -19,8 +19,6 @@ injectCoreDeps(gemDomModule, boardModule);
 let _boardListenersAdded = false;
 
 function startBattle(playerTeamData, enemyTeamData) {
-  document.getElementById('overlay').classList.add('hidden');
-
   // Clear broadcast + gem DOM
   resetBroadcast();
   gemEls.clear();
@@ -50,7 +48,6 @@ function startBattle(playerTeamData, enemyTeamData) {
 }
 
 function retryBattle() {
-  document.getElementById('overlay').classList.add('hidden');
   resetBroadcast();
   gemEls.clear();
   resetGemIds();
