@@ -14,7 +14,7 @@ import { state }                           from '../state/gameState.js'
 
 let _dungeonComplete = false;
 
-export function showVictoryRewards(gold, lootItem, heroDraw, dungeonComplete, dungeonName) {
+export function showVictoryRewards(gold, lootItem, heroDraw, dungeonComplete, dungeonName, treasureMap) {
   _dungeonComplete = dungeonComplete;
 
   document.getElementById('vict-level').textContent =
@@ -30,7 +30,12 @@ export function showVictoryRewards(gold, lootItem, heroDraw, dungeonComplete, du
   document.getElementById('vict-pack').textContent = packText;
 
   const xpEl = document.getElementById('vict-xp');
-  if (xpEl) xpEl.textContent = heroDraw ? '🎲 +1 Hero Draw!' : '';
+  if (xpEl) {
+    const parts = [];
+    if (heroDraw) parts.push('🎲 +1 Hero Draw!');
+    if (treasureMap) parts.push('🗺️ +1 Treasure Map!');
+    xpEl.textContent = parts.join('  ');
+  }
 
   const lvlUpEl = document.getElementById('vict-levelups');
   if (lvlUpEl) lvlUpEl.innerHTML = heroDraw
@@ -103,6 +108,13 @@ export function onBattleEnd(won) {
     save.inventory.push(lootItem.id);
   }
 
+  // ── Treasure Map from treasure rooms ────────────────────────
+  let treasureMapGained = false;
+  if (room.type === 'treasure') {
+    save.treasureMaps = (save.treasureMaps ?? 0) + 1;
+    treasureMapGained = true;
+  }
+
   // ── Hero Draw on boss clear ───────────────────────────────────
   let heroDraw = false;
   if (isBoss) {
@@ -125,5 +137,5 @@ export function onBattleEnd(won) {
   }
 
   writeSave();
-  showVictoryRewards(gold, lootItem, heroDraw, dungeonComplete, def.name);
+  showVictoryRewards(gold, lootItem, heroDraw, dungeonComplete, def.name, treasureMapGained);
 }

@@ -13,6 +13,8 @@ import { renderDungeonMap } from './screens/dungeonMap.js';
 import { renderHeroes }    from './screens/heroes.js';
 import { renderPacks }     from './screens/packs.js';
 import { renderUpgrade }   from './screens/upgrade.js';
+import { renderSettings }  from './screens/settings.js';
+import { renderTreasureHunt, collectTreasureResults } from './screens/treasureHunt.js';
 import { renderDungeonSelect } from './screens/dungeonSelect.js';
 import { goToTeamBuilder, launchBattle, closePicker } from './screens/teamBuilder.js';
 import { victToContinue, victNextLevel, onBattleEnd } from './screens/victory.js';
@@ -33,9 +35,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Nav bar ────────────────────────────────────────────────
   document.getElementById('btn-battle')?.addEventListener('click', renderDungeonSelect);
+  document.getElementById('btn-treasure')?.addEventListener('click', renderTreasureHunt);
   document.getElementById('btn-heroes')?.addEventListener('click', renderHeroes);
   document.getElementById('btn-packs')?.addEventListener('click', renderPacks);
   document.getElementById('btn-upgrade')?.addEventListener('click', renderUpgrade);
+  document.getElementById('btn-settings')?.addEventListener('click', renderSettings);
   document.getElementById('btn-home')?.addEventListener('click', renderHome);
 
   // ── Dungeon Select ──────────────────────────────────────────────
@@ -64,12 +68,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Heroes / Roster screen ─────────────────────────────────
   document.getElementById('heroes-back-btn')?.addEventListener('click', renderHome);
 
+  // ── Hero detail screen ─────────────────────────────────────
+  document.getElementById('hero-detail-back-btn')?.addEventListener('click', renderHeroes);
+
   // ── Packs screen ───────────────────────────────────────────
   document.getElementById('packs-back-btn')?.addEventListener('click', renderHome);
 
   // ── Upgrade / Forge screen ─────────────────────────────────
   document.getElementById('upgrade-back-btn')?.addEventListener('click', renderHome);
-
+  // ── Settings screen ─────────────────────────────────
+  document.getElementById('settings-back-btn')?.addEventListener('click', renderHome);
+  // ── Treasure Hunt screen ────────────────────────────
+  document.getElementById('th-back-btn')?.addEventListener('click', renderHome);
+  document.getElementById('th-collect-btn')?.addEventListener('click', collectTreasureResults);
   // ── Gacha / pack-opening ───────────────────────────────────
   document.getElementById('gacha-collect-btn')?.addEventListener('click', collectGachaResult);
 });

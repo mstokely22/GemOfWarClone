@@ -3,10 +3,11 @@
 //  v5: Stars replace levels. Hero Draw mechanic.
 // ============================================================
 import { save, writeSave, ensureCharData } from '../state/save.js';
-import { CHARACTERS, CHAR_BY_ID, DRAWABLE_CHARS } from '../data/characters.js';
+import { CHARACTERS, CHAR_BY_ID } from '../data/characters.js';
 import { CLASS_BY_ID }                    from '../data/classes.js';
 import { EQUIP_BY_ID, WEAPONS, ARMORS, ACCESSORIES } from '../data/equipment.js';
-import { weaponUpgradeBonus, armorUpgradeBonus } from '../data/materials.js';
+import { weaponUpgradeBonus, armorUpgradeBonus, upgradeCost, MATERIALS }
+  from '../data/materials.js';
 import { statBonusAtStars, getActiveMilestones, isSlotUnlocked, MAX_STARS }
   from '../data/leveling.js';
 import { RARITY_COLORS, RARITY_GLOWS }   from '../data/constants.js';
@@ -14,6 +15,9 @@ import { showScreen }                     from './navigation.js';
 
 
 let selectedCharId = null;
+let selectedPartySlot = null;   // 0-3 when user clicks an empty/filled slot to reassign
+let detailCharId = null;
+let detailTab = 'overview';
 
 function starsHtml(stars, max = 5) {
   return '⭐'.repeat(stars) + '☆'.repeat(max - stars);
@@ -21,20 +25,72 @@ function starsHtml(stars, max = 5) {
 
 export function renderHeroes() {
   document.getElementById('hud-gold').textContent = save.gold;
+
+  // ── Party Bar ──────────────────────────────────────────────
+  const partyBar = document.getElementById('party-bar');
+  if (partyBar) {
+    const team = save.team || [null,null,null,null];
+    partyBar.innerHTML = '<div class="party-bar-label">Active Party <span class="party-hint">(click slot to change)</span></div><div class="party-slots">' +
+      team.map((charId, i) => {
+        const selected = selectedPartySlot === i ? ' selected' : '';
+        if (!charId) {
+          return `<div class="party-slot empty-slot${selected}" data-slot="${i}"><div class="ps-emoji">＋</div><div class="ps-info"><div class="ps-name">Empty</div><div class="ps-hint">Click to assign</div></div></div>`;
+        }
+        const char = CHAR_BY_ID[charId];
+        if (!char) return `<div class="party-slot empty-slot${selected}" data-slot="${i}"><div class="ps-emoji">＋</div><div class="ps-info"><div class="ps-name">Empty</div><div class="ps-hint">Click to assign</div></div></div>`;
+        const cls   = CLASS_BY_ID[char.classId];
+        const cData = save.charData[charId];
+        const stars = cData?.stars || 1;
+        const weapon = cData?.weapon ? EQUIP_BY_ID[cData.weapon] : null;
+        const acc1   = cData?.acc1   ? EQUIP_BY_ID[cData.acc1]   : null;
+        const acc2   = cData?.acc2   ? EQUIP_BY_ID[cData.acc2]   : null;
+        const manaColors = weapon
+          ? (Array.isArray(weapon.manaColor) ? [...weapon.manaColor] : [weapon.manaColor])
+          : [];
+        for (const acc of [acc1, acc2]) {
+          if (acc?.bonusColor) {
+            const extra = Array.isArray(acc.bonusColor) ? acc.bonusColor : [acc.bonusColor];
+            for (const c of extra) { if (!manaColors.includes(c)) manaColors.push(c); }
+          }
+        }
+        const manaHtml = manaColors.map(c =>
+          `<span class="hc-mana-dot" style="background:var(--${c})" title="${c} mana"></span>`
+        ).join('');
+        return `<div class="party-slot${selected}" data-slot="${i}">
+          <div class="ps-emoji">${cls.emoji}</div>
+          <div class="ps-info">
+            <div class="ps-name">${char.name}</div>
+            <div class="ps-stars">${starsHtml(stars)}</div>
+            <div class="ps-mana">${manaHtml}</div>
+          </div>
+          <button class="ps-remove" data-slot="${i}" title="Remove from party">✕</button>
+        </div>`;
+      }).join('') + '</div>';
+
+    // Wire party slot clicks
+    partyBar.querySelectorAll('.party-slot').forEach(el => {
+      const idx = parseInt(el.dataset.slot);
+      // Remove button
+      const rmBtn = el.querySelector('.ps-remove');
+      if (rmBtn) {
+        rmBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          save.team[idx] = null;
+          selectedPartySlot = null;
+          writeSave();
+          renderHeroes();
+        });
+      }
+      // Clicking the slot itself toggles selection for assignment
+      el.addEventListener('click', () => {
+        selectedPartySlot = selectedPartySlot === idx ? null : idx;
+        renderHeroes();
+      });
+    });
+  }
+
   const grid = document.getElementById('heroes-grid');
   grid.innerHTML = '';
-
-  // Hero Draw button
-  const heroDraws = save.heroDraws || 0;
-  const drawArea = document.createElement('div');
-  drawArea.className = 'hero-draw-area';
-  drawArea.innerHTML = `
-    <button id="hero-draw-btn" class="hero-draw-btn" ${heroDraws < 1 ? 'disabled' : ''}>
-      🎲 Hero Draw (${heroDraws} available)
-    </button>
-  `;
-  grid.appendChild(drawArea);
-  drawArea.querySelector('#hero-draw-btn').addEventListener('click', performHeroDraw);
 
   // Show unlocked first, then locked
   const sorted = [...CHARACTERS].sort((a, b) => {
@@ -50,8 +106,9 @@ export function renderHeroes() {
     const cData = save.charData[char.charId];
     const stars = cData ? (cData.stars || 1) : 0;
 
+    const inParty = save.team.includes(char.charId);
     const card = document.createElement('div');
-    card.className = 'hero-card' + (owned ? '' : ' locked');
+    card.className = 'hero-card' + (owned ? '' : ' locked') + (inParty ? ' in-party' : '');
     card.style.borderColor = owned ? '#c8a040' : '#333';
 
     if (owned) {
@@ -118,12 +175,30 @@ export function renderHeroes() {
           <span class="hc-equip-item">${weapon ? `${weapon.icon || '⚔️'} ${weapon.name}` : '<span class="hc-empty">No weapon</span>'}</span>
           <span class="hc-equip-item">${armor  ? `${armor.icon || '🛡'} ${armor.name}` : '<span class="hc-empty">No armor</span>'}</span>
         </div>
-        <button class="hero-equip-btn" data-char="${char.charId}">Manage Gear</button>
+        <div class="hc-btn-row">
+          <button class="hero-equip-btn" data-char="${char.charId}">Hero Details</button>
+          ${inParty
+            ? '<span class="hc-party-badge">✓ In Party</span>'
+            : `<button class="hero-party-btn" data-char="${char.charId}">+ Add to Party</button>`}
+        </div>
       `;
       card.querySelector('.hero-equip-btn').addEventListener('click', (e) => {
         e.stopPropagation();
-        openEquipOverlay(char.charId);
+        openHeroDetail(char.charId);
       });
+      // Party assignment (click card or the "Add to Party" button)
+      const partyBtn = card.querySelector('.hero-party-btn');
+      if (partyBtn) {
+        partyBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          assignToParty(char.charId);
+        });
+      }
+      // If a slot is selected, clicking the card itself also assigns
+      if (selectedPartySlot !== null && !inParty) {
+        card.classList.add('assignable');
+        card.addEventListener('click', () => assignToParty(char.charId));
+      }
     } else {
       card.innerHTML = `
         <div class="hc-top-row">
@@ -133,7 +208,7 @@ export function renderHeroes() {
             <div class="hc-class" style="color:#666">${cls.name}</div>
           </div>
         </div>
-        <div class="hc-lock-msg">🔒 Use a Hero Draw to unlock</div>
+        <div class="hc-lock-msg">🔒 Use a Hero Draw in the Store</div>
       `;
     }
     grid.appendChild(card);
@@ -142,35 +217,26 @@ export function renderHeroes() {
   showScreen('heroes');
 }
 
-// ── Hero Draw ────────────────────────────────────────────────
-function performHeroDraw() {
-  if ((save.heroDraws || 0) < 1) return;
-  save.heroDraws -= 1;
+// ── Party Assignment ─────────────────────────────────────────
+function assignToParty(charId) {
+  if (!save.team) save.team = [null, null, null, null];
 
-  // Find unlockable heroes (not yet unlocked)
-  const unowned = DRAWABLE_CHARS.filter(c => !save.unlockedCharIds.includes(c.charId));
-  if (unowned.length > 0) {
-    // Unlock a random new hero
-    const char = unowned[Math.floor(Math.random() * unowned.length)];
-    save.unlockedCharIds.push(char.charId);
-    ensureCharData(char.charId); // assigns starter weapon
-    writeSave();
-    alert(`🎉 ${char.name} joined your roster!`);
+  // If a specific slot is selected, place hero there
+  if (selectedPartySlot !== null) {
+    // Remove hero from any existing slot
+    const existingIdx = save.team.indexOf(charId);
+    if (existingIdx !== -1) save.team[existingIdx] = null;
+    save.team[selectedPartySlot] = charId;
+    selectedPartySlot = null;
   } else {
-    // All heroes unlocked — upgrade a random hero's stars (cap MAX_STARS)
-    const upgradeable = DRAWABLE_CHARS.filter(c => (save.charData[c.charId]?.stars || 1) < MAX_STARS);
-    if (upgradeable.length > 0) {
-      const char = upgradeable[Math.floor(Math.random() * upgradeable.length)];
-      save.charData[char.charId].stars = (save.charData[char.charId].stars || 1) + 1;
-      writeSave();
-      alert(`⭐ ${char.name} upgraded to ${starsHtml(save.charData[char.charId].stars)}!`);
-    } else {
-      // All heroes at max stars — refund draw
-      save.heroDraws += 1;
-      writeSave();
-      alert('🌟 All heroes are already at max stars!');
-    }
+    // No slot selected — find first empty slot
+    const existingIdx = save.team.indexOf(charId);
+    if (existingIdx !== -1) return; // already in party
+    const emptyIdx = save.team.indexOf(null);
+    if (emptyIdx === -1) return;    // party full
+    save.team[emptyIdx] = charId;
   }
+  writeSave();
   renderHeroes();
 }
 
@@ -275,10 +341,48 @@ function equipSlotHtml(slot, itemId, label, charId) {
   const upgStr = upgLevel > 0 ? ` +${upgLevel}` : '';
   if (item) {
     const rarC = RARITY_COLORS[item.rarity] || '#8a9ba8';
+    const canUpg = upgLevel < 10;
+
+    // Build upgrade section
+    let upgradeHtml = '';
+    if (canUpg) {
+      const nextStats = equipStatLine(item, upgLevel + 1);
+      const cost = upgradeCost(item, upgLevel);
+      const costChips = Object.entries(cost).map(([matId, qty]) => {
+        if (matId === '_gold') {
+          const enough = save.gold >= qty;
+          return `<span class="eu-cost-chip${enough ? '' : ' eu-short'}">💰${qty}g</span>`;
+        }
+        const mat = MATERIALS[matId];
+        const have = save.materials?.[matId] ?? 0;
+        const enough = have >= qty;
+        return `<span class="eu-cost-chip${enough ? '' : ' eu-short'}">${mat?.emoji || matId} ${have}/${qty}</span>`;
+      }).join('');
+
+      upgradeHtml = `
+        <div class="eu-upgrade-section">
+          <div class="eu-preview">
+            <span class="eu-preview-label">+${upgLevel + 1}</span>
+            <span class="eu-preview-stats">${nextStats}</span>
+          </div>
+          <div class="eu-cost-row">${costChips}</div>
+          <button class="eu-upgrade-btn" data-id="${itemId}">⬆ Upgrade</button>
+        </div>`;
+    } else {
+      upgradeHtml = `<div class="eu-max-badge">✦ MAX +10</div>`;
+    }
+
     return `<div class="equip-slot filled" style="border-color:${rarC}">
-      <div class="equip-slot-label">${label}</div>
-      <div class="equip-slot-name" style="color:${rarC}">${item.name}${upgStr}</div>
-      ${equipStatLine(item, upgLevel)}
+      <div class="es-top-row">
+        <div class="es-info">
+          <div class="equip-slot-label">${label}</div>
+          <div class="equip-slot-name" style="color:${rarC}">${item.name}${upgStr}</div>
+          ${equipStatLine(item, upgLevel)}
+        </div>
+        <div class="es-upgrade">
+          ${upgradeHtml}
+        </div>
+      </div>
       <div class="equip-slot-btns">
         <button class="equip-change-btn" data-slot="${slot}">Change</button>
         <button class="equip-unequip-btn" data-slot="${slot}">Remove</button>
@@ -373,12 +477,255 @@ function equipItem(charId, slot, itemId) {
   save.charData[charId][slot] = itemId;
   writeSave();
   document.getElementById('hero-picker-overlay').classList.add('hidden');
-  openEquipOverlay(charId); // refresh
+  openHeroDetail(charId, 'equipment'); // refresh detail view
 }
 
 function unequipSlot(charId, slot) {
   if (!save.charData[charId]) return;
   save.charData[charId][slot] = null;
   writeSave();
-  openEquipOverlay(charId); // refresh
+  openHeroDetail(charId, 'equipment'); // refresh detail view
+}
+
+function doInlineUpgrade(itemId, charId) {
+  const item = EQUIP_BY_ID[itemId];
+  if (!item) return;
+  const lvl = save.upgrades[itemId] || 0;
+  if (lvl >= 10) return;
+
+  const cost = upgradeCost(item, lvl);
+  // Check affordability
+  for (const [matId, qty] of Object.entries(cost)) {
+    if (matId === '_gold') {
+      if (save.gold < qty) { alert('Not enough gold!'); return; }
+    } else {
+      if ((save.materials?.[matId] ?? 0) < qty) { alert('Not enough materials!'); return; }
+    }
+  }
+  // Deduct cost
+  for (const [matId, qty] of Object.entries(cost)) {
+    if (matId === '_gold') save.gold -= qty;
+    else save.materials[matId] -= qty;
+  }
+  save.upgrades[itemId] = lvl + 1;
+  writeSave();
+  // Refresh gold in HUD + re-render detail
+  document.getElementById('hud-gold').textContent = save.gold;
+  openHeroDetail(charId, 'equipment');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  HERO DETAIL VIEW  (tabbed: Overview · Equipment · Perks · Lore)
+// ══════════════════════════════════════════════════════════════
+const DETAIL_TABS = [
+  { id: 'overview',  label: '📊 Overview' },
+  { id: 'equipment', label: '⚔️ Equipment' },
+  { id: 'perks',     label: '🔮 Perks' },
+  { id: 'lore',      label: '📖 Lore' },
+];
+
+export function openHeroDetail(charId, tab) {
+  detailCharId = charId;
+  if (tab) detailTab = tab;
+
+  const char  = CHAR_BY_ID[charId];
+  const cls   = CLASS_BY_ID[char.classId];
+  const cData = save.charData[charId];
+  const stars = cData?.stars || 1;
+
+  document.getElementById('hero-detail-title').textContent = char.name;
+
+  const content = document.getElementById('hero-detail-content');
+
+  // ── Tab bar ────────────────────────────────────────────────
+  const tabsHtml = DETAIL_TABS.map(t =>
+    `<button class="hd-tab${detailTab === t.id ? ' active' : ''}" data-tab="${t.id}">${t.label}</button>`
+  ).join('');
+
+  // ── Tab content ────────────────────────────────────────────
+  let body = '';
+  if (detailTab === 'overview')  body = renderOverviewTab(char, cls, cData, stars);
+  if (detailTab === 'equipment') body = renderEquipmentTab(char, cls, cData, stars);
+  if (detailTab === 'perks')     body = renderPerksTab(char, cls, cData, stars);
+  if (detailTab === 'lore')      body = renderLoreTab(char, cls, cData, stars);
+
+  content.innerHTML = `
+    <div class="hd-tab-bar">${tabsHtml}</div>
+    <div class="hd-tab-body">${body}</div>
+  `;
+
+  // Wire tabs
+  content.querySelectorAll('.hd-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      detailTab = btn.dataset.tab;
+      openHeroDetail(charId);
+    });
+  });
+
+  // Wire equipment interactions if on equipment tab
+  if (detailTab === 'equipment') {
+    content.querySelectorAll('.equip-change-btn').forEach(btn => {
+      btn.addEventListener('click', () => openEquipPicker(charId, btn.dataset.slot));
+    });
+    content.querySelectorAll('.equip-unequip-btn').forEach(btn => {
+      btn.addEventListener('click', () => unequipSlot(charId, btn.dataset.slot));
+    });
+    content.querySelectorAll('.eu-upgrade-btn').forEach(btn => {
+      btn.addEventListener('click', () => doInlineUpgrade(btn.dataset.id, charId));
+    });
+  }
+
+  showScreen('hero-detail');
+}
+
+// ── Overview Tab ──────────────────────────────────────────────
+function renderOverviewTab(char, cls, cData, stars) {
+  const growth = cls.statGrowth || {};
+  const bonus  = statBonusAtStars(growth, stars);
+  const weapon = cData?.weapon ? EQUIP_BY_ID[cData.weapon] : null;
+  const armor  = cData?.armor  ? EQUIP_BY_ID[cData.armor]  : null;
+  const acc1   = cData?.acc1   ? EQUIP_BY_ID[cData.acc1]   : null;
+  const acc2   = cData?.acc2   ? EQUIP_BY_ID[cData.acc2]   : null;
+  const wUpg   = save.upgrades[cData?.weapon] || 0;
+  const aUpg   = save.upgrades[cData?.armor]  || 0;
+
+  let atk = (cls.baseAttack  || 0) + bonus.attack;
+  let arm = (cls.baseArmor   || 0) + bonus.armor;
+  let hp  = (cls.baseMaxLife || 22) + bonus.maxLife;
+  if (weapon) atk += (weapon.baseAttackBonus || 0) + weaponUpgradeBonus(weapon.rarity, wUpg).attack;
+  if (armor) {
+    const aBonus = armorUpgradeBonus(armor.rarity, aUpg);
+    arm += (armor.baseArmorBonus || 0) + aBonus.armor;
+    hp  += (armor.baseLifeBonus  || 0) + aBonus.maxLife;
+  }
+  if (acc1?.stats) { atk += acc1.stats.attack || 0; arm += acc1.stats.armor || 0; hp += acc1.stats.maxLife || 0; }
+  if (acc2?.stats) { atk += acc2.stats.attack || 0; arm += acc2.stats.armor || 0; hp += acc2.stats.maxLife || 0; }
+
+  // Mana colors
+  const manaColors = weapon
+    ? (Array.isArray(weapon.manaColor) ? [...weapon.manaColor] : [weapon.manaColor])
+    : [];
+  for (const acc of [acc1, acc2]) {
+    if (acc?.bonusColor) {
+      const extra = Array.isArray(acc.bonusColor) ? acc.bonusColor : [acc.bonusColor];
+      for (const c of extra) { if (!manaColors.includes(c)) manaColors.push(c); }
+    }
+  }
+  const manaHtml = manaColors.length > 0
+    ? manaColors.map(c => `<span class="hc-mana-dot" style="background:var(--${c})" title="${c}"></span>`).join('')
+    : '<span class="hd-none">No weapon equipped</span>';
+
+  // Spell info
+  const spellHtml = weapon
+    ? `<div class="hd-spell"><span class="hd-spell-name">${weapon.spell}</span> <span class="hd-spell-cost">(${weapon.manaCost} mana)</span><div class="hd-spell-desc">${weapon.spellDesc}</div></div>`
+    : '<div class="hd-none">Equip a weapon to gain a spell</div>';
+
+  // Star-up section
+  const shards = cData?.shards || 0;
+  const shardsNeeded = stars >= MAX_STARS ? 0 : stars * 10; // 10, 20, 30, 40
+  const canStarUp = stars < MAX_STARS && shards >= shardsNeeded;
+
+  return `
+    <div class="hd-overview">
+      <div class="hd-hero-header">
+        <div class="hd-hero-emoji">${cls.emoji}</div>
+        <div class="hd-hero-info">
+          <div class="hd-hero-name">${char.name}</div>
+          <div class="hd-hero-class">${cls.name}</div>
+          <div class="hd-hero-stars">${starsHtml(stars)}</div>
+        </div>
+        <div class="hd-mana-col">
+          <div class="hd-mana-label">Mana</div>
+          <div class="hd-mana-dots">${manaHtml}</div>
+        </div>
+      </div>
+
+      <div class="hd-stats-grid">
+        <div class="hd-stat"><div class="hd-stat-val">${atk}</div><div class="hd-stat-label">⚔️ Attack</div></div>
+        <div class="hd-stat"><div class="hd-stat-val">${arm}</div><div class="hd-stat-label">🛡 Armor</div></div>
+        <div class="hd-stat"><div class="hd-stat-val">${hp}</div><div class="hd-stat-label">❤️ Health</div></div>
+      </div>
+
+      <div class="hd-section-label">Spell</div>
+      ${spellHtml}
+
+      <div class="hd-section-label">Star Upgrade</div>
+      <div class="hd-star-up">
+        ${stars >= MAX_STARS
+          ? '<div class="hd-star-max">🌟 Maximum Stars Reached!</div>'
+          : `<div class="hd-shard-bar">
+              <div class="hd-shard-info">
+                <span>Shards: ${shards} / ${shardsNeeded}</span>
+              </div>
+              <div class="hd-shard-track"><div class="hd-shard-fill" style="width:${Math.min(100, (shards / shardsNeeded) * 100)}%"></div></div>
+            </div>
+            <button class="hd-star-btn" ${canStarUp ? '' : 'disabled'}>
+              ⭐ Upgrade to ${stars + 1} Stars
+            </button>`
+        }
+      </div>
+    </div>
+  `;
+}
+
+// ── Equipment Tab ─────────────────────────────────────────────
+function renderEquipmentTab(char, cls, cData, stars) {
+  const acc2Open = isSlotUnlocked(cls.milestones, stars, 'acc2');
+
+  return `
+    <div class="hd-equipment">
+      <div class="equip-slots">
+        ${equipSlotHtml('weapon', cData?.weapon, '⚔️ Weapon', char.charId)}
+        ${equipSlotHtml('armor',  cData?.armor,  '🛡 Armor', char.charId)}
+        ${equipSlotHtml('acc1',   cData?.acc1,   '💎 Accessory 1', char.charId)}
+        ${acc2Open
+          ? equipSlotHtml('acc2', cData?.acc2, '💎 Accessory 2', char.charId)
+          : '<div class="equip-slot locked"><span>🔒 Reach ⭐3 to unlock 2nd Accessory</span></div>'
+        }
+      </div>
+    </div>
+  `;
+}
+
+// ── Perks Tab ─────────────────────────────────────────────────
+function renderPerksTab(char, cls, cData, stars) {
+  const milestones = cls.milestones || {};
+  let html = '<div class="hd-perks">';
+
+  for (let s = 2; s <= MAX_STARS; s++) {
+    const m = milestones[s];
+    if (!m) continue;
+    const unlocked = stars >= s;
+    const icon = m.type === 'slot' ? '🔓' : '🔮';
+    html += `
+      <div class="hd-perk ${unlocked ? 'unlocked' : 'locked'}">
+        <div class="hd-perk-star">${'⭐'.repeat(s)}</div>
+        <div class="hd-perk-info">
+          <div class="hd-perk-name">${icon} ${m.name}</div>
+          <div class="hd-perk-desc">${m.desc}</div>
+        </div>
+        <div class="hd-perk-status">${unlocked ? '✅' : `🔒 Requires ⭐${s}`}</div>
+      </div>
+    `;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// ── Lore Tab ──────────────────────────────────────────────────
+function renderLoreTab(char, cls, cData, stars) {
+  const lore = char.lore || 'This hero\'s story has yet to be written...';
+  return `
+    <div class="hd-lore">
+      <div class="hd-lore-header">
+        <div class="hd-lore-emoji">${cls.emoji}</div>
+        <div>
+          <div class="hd-lore-name">${char.name}</div>
+          <div class="hd-lore-class">${cls.name} · ${cls.archetype}</div>
+        </div>
+      </div>
+      <div class="hd-lore-text">${lore}</div>
+    </div>
+  `;
 }

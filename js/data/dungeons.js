@@ -121,7 +121,7 @@ export const DUNGEONS = [
     flavorText: 'Crystalline tunnels haunted by frost spirits.',
     theme: 'blue',
     difficulty: 3,
-    completionReward: 'warrior',
+    completionReward: 'champion',
     unlockCondition: 'clear:bandit_outpost',
     enemyPool: {
       combat: [
@@ -151,7 +151,7 @@ export const DUNGEONS = [
     flavorText: 'Scorching tunnels seething with lava and flame.',
     theme: 'red',
     difficulty: 4,
-    completionReward: 'warrior',
+    completionReward: 'champion',
     unlockCondition: 'clear:frozen_caverns',
     enemyPool: {
       combat: [

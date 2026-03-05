@@ -38,20 +38,30 @@
       <span class="hbtn-label">Dungeons</span>
       <span class="hbtn-sub">Enter &amp; explore</span>
     </button>
+    <button id="btn-treasure" class="home-btn treasure-btn">
+      <span class="hbtn-icon">🗺️</span>
+      <span class="hbtn-label">Treasure</span>
+      <span class="hbtn-sub">Hunt for riches</span>
+    </button>
     <button id="btn-heroes" class="home-btn heroes-btn">
       <span class="hbtn-icon">🧑</span>
       <span class="hbtn-label">Roster</span>
       <span class="hbtn-sub">Manage characters</span>
     </button>
     <button id="btn-packs" class="home-btn packs-btn">
-      <span class="hbtn-icon">📦</span>
-      <span class="hbtn-label">Equipment Packs</span>
-      <span class="hbtn-sub">Roll for gear</span>
+      <span class="hbtn-icon">🏪</span>
+      <span class="hbtn-label">Store</span>
+      <span class="hbtn-sub">Packs &amp; hero draws</span>
     </button>
     <button id="btn-upgrade" class="home-btn upgrade-btn">
       <span class="hbtn-icon">🔨</span>
       <span class="hbtn-label">Forge</span>
       <span class="hbtn-sub">Upgrade &amp; dismantle</span>
+    </button>
+    <button id="btn-settings" class="home-btn settings-btn">
+      <span class="hbtn-icon">⚙️</span>
+      <span class="hbtn-label">Settings</span>
+      <span class="hbtn-sub">Options &amp; account</span>
     </button>
   </nav>
   <div id="home-progress"></div>
@@ -185,6 +195,7 @@
     <div class="header-gold">💰 <span id="heroes-gold">0</span>g</div>
   </div>
   <div id="heroes-scroll">
+    <div id="party-bar"></div>
     <div id="heroes-grid"></div>
   </div>
 
@@ -193,15 +204,30 @@
 </div>
 
 <!-- ═══════════════════════════════════════
-     CARD PACKS SCREEN
+     HERO DETAILS SCREEN
+══════════════════════════════════════════ -->
+<div id="screen-hero-detail" class="screen hidden">
+  <div class="screen-header">
+    <button class="back-btn" id="hero-detail-back-btn">← Roster</button>
+    <h2 id="hero-detail-title">Hero Details</h2>
+    <div></div>
+  </div>
+  <div id="hero-detail-body">
+    <div id="hero-detail-content"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     STORE SCREEN (Equipment Packs + Hero Draws)
 ══════════════════════════════════════════ -->
 <div id="screen-packs" class="screen hidden">
   <div class="screen-header">
     <button class="back-btn" id="packs-back-btn">← Home</button>
-    <h2>Card Packs</h2>
+    <h2>Store</h2>
     <div class="header-gold">💰 <span id="packs-gold">0</span>g</div>
   </div>
   <div id="packs-body">
+    <div id="store-hero-draw"></div>
     <div id="free-packs-notice"></div>
     <div id="packs-grid"></div>
   </div>
@@ -244,6 +270,86 @@
     </div>
     <div id="gacha-result-info" class="hidden"></div>
     <button id="gacha-collect-btn" class="hidden">✔ Collect</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SETTINGS SCREEN
+══════════════════════════════════════════ -->
+<div id="screen-settings" class="screen hidden">
+  <div class="screen-header">
+    <button class="back-btn" id="settings-back-btn">← Home</button>
+    <h2>Settings</h2>
+    <div></div>
+  </div>
+  <div id="settings-body">
+    <div id="settings-list"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     TREASURE HUNT SCREEN
+══════════════════════════════════════════ -->
+<div id="screen-treasure-hunt" class="screen hidden">
+  <div class="screen-header">
+    <button class="back-btn" id="th-back-btn">← Home</button>
+    <h2>Treasure Hunt</h2>
+    <div class="header-gold">💰 <span id="treasure-hunt-gold">0</span>g</div>
+  </div>
+
+  <!-- Lobby (map count + start button) -->
+  <div id="th-lobby">
+    <div class="th-lobby-card">
+      <div class="th-lobby-icon">🗺️</div>
+      <h3>Treasure Maps</h3>
+      <div class="th-map-display">🗺️ × <span id="th-map-count">0</span></div>
+      <p class="th-rules">
+        Match 3+ treasure tiles to merge them into higher-value loot!<br>
+        🪙→🥈→🥇→💰→🎁→👑<br>
+        Match 4+ for an extra turn. You start with <strong>8 turns</strong>.
+      </p>
+      <button id="th-use-map-btn" class="th-start-btn" disabled>🗺️ Use a Map</button>
+    </div>
+  </div>
+
+  <!-- Game board area -->
+  <div id="th-game" style="display:none">
+    <div class="th-game-layout">
+      <div class="th-board-col">
+        <div id="th-board"></div>
+      </div>
+      <div class="th-sidebar-col">
+        <div class="th-turns-bar">
+          <span class="th-turns-label">Turns</span>
+          <span id="th-turns" class="th-turns-val">8</span>
+        </div>
+        <div class="th-board-counts">
+          <div class="th-counts-header">Board</div>
+          <div class="th-count-row th-cr-copper"><span class="th-cr-swatch" style="background:#b87333"></span> Copper <span id="th-cnt-1" class="th-cr-num">0</span></div>
+          <div class="th-count-row th-cr-silver"><span class="th-cr-swatch" style="background:#c0c0c0"></span> Silver <span id="th-cnt-2" class="th-cr-num">0</span></div>
+          <div class="th-count-row th-cr-gold"><span class="th-cr-swatch" style="background:#ffd700"></span> Gold <span id="th-cnt-3" class="th-cr-num">0</span></div>
+          <div class="th-count-row th-cr-bag"><span class="th-cr-swatch" style="background:#27ae60"></span> Bag <span id="th-cnt-4" class="th-cr-num">0</span></div>
+          <div class="th-count-row th-cr-chest"><span class="th-cr-swatch" style="background:#3498db"></span> Chest <span id="th-cnt-5" class="th-cr-num">0</span></div>
+          <div class="th-count-row th-cr-vault"><span class="th-cr-swatch" style="background:#9b59b6"></span> Vault <span id="th-cnt-6" class="th-cr-num">0</span></div>
+        </div>
+        <div class="th-reward-sidebar">
+          <div class="th-reward-header">Rewards</div>
+          <div class="th-reward-row">💰 <span id="th-reward-gold">0</span>g</div>
+          <div class="th-reward-row">⚙️ <span id="th-reward-mats">0</span> mats</div>
+          <div class="th-reward-row">📦 <span id="th-reward-equip">0</span> items</div>
+          <div class="th-reward-row">💎 <span id="th-reward-shards">0</span> shards</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results overlay -->
+  <div id="th-results" style="display:none">
+    <div class="th-results-card">
+      <h3>🏆 Treasure Collected!</h3>
+      <div id="th-results-body"></div>
+      <button id="th-collect-btn" class="th-start-btn">✔ Collect &amp; Return</button>
+    </div>
   </div>
 </div>
 

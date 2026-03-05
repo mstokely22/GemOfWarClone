@@ -110,7 +110,7 @@ export const LEVELS = [
       mkEnemy('Dark Templar',   '🧑','purple', 46, 18, 7, 11, 'Dark Smite',   dealDmg(18)),
       mkEnemy('Shadow Acolyte', '🔮','purple', 36, 15, 6, 10, 'Chaos Bolt',   dealAoE(10))
     ],
-    gold: 250, packReward: 'warrior', stars: 0,
+    gold: 250, packReward: 'champion', stars: 0,
     label: 'Temple of Shadow', difficulty: 4
   },
   // Level 9 — 4 very hard enemies

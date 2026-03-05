@@ -1,9 +1,11 @@
 // ============================================================
-//  GEMS OF COMBAT — Equipment Packs & Gacha Screen
+//  GEMS OF COMBAT — Store Screen (Equipment Packs + Hero Draws)
 // ============================================================
-import { save, writeSave }  from '../state/save.js';
+import { save, writeSave, ensureCharData } from '../state/save.js';
 import { ALL_EQUIPMENT }    from '../data/equipment.js';
 import { PACKS }            from '../data/packs.js';
+import { DRAWABLE_CHARS }   from '../data/characters.js';
+import { MAX_STARS }        from '../data/leveling.js';
 import { RARITY_COLORS, RARITY_GLOWS } from '../data/constants.js';
 import { showScreen }       from './navigation.js';
 
@@ -23,10 +25,63 @@ function rollPack(packId) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-// ── Packs store ─────────────────────────────────────────────────
+function starsHtml(s, max = 5) { return '⭐'.repeat(s) + '☆'.repeat(max - s); }
+
+// ── Hero Draw ────────────────────────────────────────────────
+function performHeroDraw() {
+  if ((save.heroDraws || 0) < 1) return;
+  save.heroDraws -= 1;
+
+  const unowned = DRAWABLE_CHARS.filter(c => !save.unlockedCharIds.includes(c.charId));
+  if (unowned.length > 0) {
+    const char = unowned[Math.floor(Math.random() * unowned.length)];
+    save.unlockedCharIds.push(char.charId);
+    ensureCharData(char.charId);
+    writeSave();
+    alert(`🎉 ${char.name} joined your roster!`);
+  } else {
+    const upgradeable = DRAWABLE_CHARS.filter(c => (save.charData[c.charId]?.stars || 1) < MAX_STARS);
+    if (upgradeable.length > 0) {
+      const char = upgradeable[Math.floor(Math.random() * upgradeable.length)];
+      save.charData[char.charId].stars = (save.charData[char.charId].stars || 1) + 1;
+      writeSave();
+      alert(`⭐ ${char.name} upgraded to ${starsHtml(save.charData[char.charId].stars)}!`);
+    } else {
+      save.heroDraws += 1;
+      writeSave();
+      alert('🌟 All heroes are already at max stars!');
+    }
+  }
+  renderPacks();
+}
+
+// ── Store screen ────────────────────────────────────────────────
 export function renderPacks() {
   document.getElementById('hud-gold').textContent = save.gold;
 
+  // ── Hero Draw section ──────────────────────────────────────
+  const drawEl = document.getElementById('store-hero-draw');
+  if (drawEl) {
+    const heroDraws = save.heroDraws || 0;
+    drawEl.innerHTML = `
+      <div class="store-section-label">Hero Draws</div>
+      <div class="store-hero-draw-row">
+        <div class="store-draw-info">
+          <span class="store-draw-icon">🎲</span>
+          <div>
+            <div class="store-draw-title">Hero Draw</div>
+            <div class="store-draw-desc">Unlock a new hero or upgrade stars</div>
+          </div>
+        </div>
+        <button id="hero-draw-btn" class="hero-draw-btn" ${heroDraws < 1 ? 'disabled' : ''}>
+          Draw (${heroDraws} available)
+        </button>
+      </div>
+    `;
+    drawEl.querySelector('#hero-draw-btn')?.addEventListener('click', performHeroDraw);
+  }
+
+  // ── Equipment Packs section ────────────────────────────────
   const freeCount = (save.freePacks || []).length;
   document.getElementById('free-packs-notice').textContent =
     freeCount > 0
@@ -34,7 +89,7 @@ export function renderPacks() {
       : '';
 
   const container = document.getElementById('packs-grid');
-  container.innerHTML = '';
+  container.innerHTML = '<div class="store-section-label">Equipment Packs</div>';
 
   Object.values(PACKS).forEach(pack => {
     const canAfford = save.gold >= pack.cost;

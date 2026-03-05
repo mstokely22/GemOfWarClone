@@ -47,6 +47,9 @@ const DEFAULT_SAVE = {
 
   // ── Rewards ─────────────────────────────────────────────────
   freePacks: [],
+
+  // ── Treasure Hunt ───────────────────────────────────────────
+  treasureMaps: 2,
 };
 
 // Exported mutable singleton — all importers share the same reference.
