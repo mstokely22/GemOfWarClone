@@ -1,18 +1,20 @@
 // ============================================================
 //  GEMS OF COMBAT — Victory / Battle-End Screen
-//  v4: Dungeon room flow — clears room, returns to dungeon map.
+//  v5: Stars replace levels, hero draws from boss clears,
+//      equipment drops from combat/elite rooms.
 // ============================================================
 import { save, writeSave, ensureCharData } from '../state/save.js';
 import { PACKS }                           from '../data/packs.js';
-import { getUnlockableChars, CHAR_BY_ID }  from '../data/characters.js';
-import { xpPerMember, levelFromXp }        from '../data/leveling.js';
+import { CHAR_BY_ID }                      from '../data/characters.js';
 import { DUNGEON_BY_ID }                   from '../data/dungeons.js';
+import { ALL_EQUIPMENT }                   from '../data/equipment.js';
 import { showScreen }                      from './navigation.js';
-import { state }                           from '../state/gameState.js';
+import { state }                           from '../state/gameState.js'
+
 
 let _dungeonComplete = false;
 
-export function showVictoryRewards(gold, xpGained, levelUps, newChars, dungeonComplete, dungeonName) {
+export function showVictoryRewards(gold, lootItem, heroDraw, dungeonComplete, dungeonName) {
   _dungeonComplete = dungeonComplete;
 
   document.getElementById('vict-level').textContent =
@@ -28,17 +30,19 @@ export function showVictoryRewards(gold, xpGained, levelUps, newChars, dungeonCo
   document.getElementById('vict-pack').textContent = packText;
 
   const xpEl = document.getElementById('vict-xp');
-  if (xpEl) xpEl.textContent = xpGained > 0 ? `+${xpGained} XP` : '';
+  if (xpEl) xpEl.textContent = heroDraw ? '🎲 +1 Hero Draw!' : '';
 
   const lvlUpEl = document.getElementById('vict-levelups');
-  if (lvlUpEl) lvlUpEl.innerHTML = levelUps.map(lu =>
-    `<div class="levelup-notice">⬆ ${lu.name} → Level ${lu.level}!</div>`
-  ).join('');
+  if (lvlUpEl) lvlUpEl.innerHTML = heroDraw
+    ? `<div class="levelup-notice">🎲 Boss cleared! Head to Heroes to use your draw.</div>`
+    : '';
 
   const unlockEl = document.getElementById('vict-unlocks');
-  if (unlockEl) unlockEl.innerHTML = newChars.map(name =>
-    `<div class="unlock-notice">🔓 ${name} joined your roster!</div>`
-  ).join('');
+  if (unlockEl) {
+    unlockEl.innerHTML = lootItem
+      ? `<div class="unlock-notice">📦 Loot: ${lootItem.icon} ${lootItem.name} (${lootItem.rarity})</div>`
+      : '';
+  }
 
   document.getElementById('vict-continue-btn').textContent =
     dungeonComplete ? '🏠 Return Home' : '🗺 Back to Dungeon';
@@ -92,21 +96,18 @@ export function onBattleEnd(won) {
   run.pendingRoomId = null;
   run.pendingBattle = null;
 
-  // ── XP Distribution ─────────────────────────────────────────
-  const difficulty  = def.difficulty || 1;
-  const livingCount = state.playerTeam.filter(t => t.life > 0).length;
-  const xpEach      = xpPerMember(difficulty, Math.max(1, livingCount));
-  const levelUps    = [];
+  // ── Equipment drop from combat/elite rooms ───────────────────
+  let lootItem = null;
+  if (room.type === 'combat' || room.type === 'elite') {
+    lootItem = ALL_EQUIPMENT[Math.floor(Math.random() * ALL_EQUIPMENT.length)];
+    save.inventory.push(lootItem.id);
+  }
 
-  for (const charId of save.team.filter(Boolean)) {
-    ensureCharData(charId);
-    const cData = save.charData[charId];
-    const troop = state.playerTeam.find(t => t.charId === charId);
-    if (!troop || troop.life <= 0) continue;
-    const oldLevel = levelFromXp(cData.xp);
-    cData.xp += xpEach;
-    const newLevel = levelFromXp(cData.xp);
-    if (newLevel > oldLevel) levelUps.push({ name: troop.name, level: newLevel });
+  // ── Hero Draw on boss clear ───────────────────────────────────
+  let heroDraw = false;
+  if (isBoss) {
+    save.heroDraws = (save.heroDraws || 0) + 1;
+    heroDraw = true;
   }
 
   // ── Dungeon completion ───────────────────────────────────────
@@ -123,18 +124,6 @@ export function onBattleEnd(won) {
     }
   }
 
-  // ── Character unlocks ────────────────────────────────────────
-  const shouldUnlock = getUnlockableChars(save.dungeonsCleared);
-  const newChars     = [];
-  for (const charId of shouldUnlock) {
-    if (!save.unlockedCharIds.includes(charId)) {
-      save.unlockedCharIds.push(charId);
-      ensureCharData(charId);
-      const c = CHAR_BY_ID[charId];
-      if (c) newChars.push(c.name);
-    }
-  }
-
   writeSave();
-  showVictoryRewards(gold, xpEach, levelUps, newChars, dungeonComplete, def.name);
+  showVictoryRewards(gold, lootItem, heroDraw, dungeonComplete, def.name);
 }

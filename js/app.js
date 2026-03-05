@@ -858,8 +858,8 @@ function collectGachaResult() {
 // ══════════════════════════════════════════════════════════════
 function scaleBattle() {
   // Design dimensions (must match #game-container width/height in CSS)
-  const DESIGN_W = 980;
-  const DESIGN_H = 570;
+  const DESIGN_W = 1080;
+  const DESIGN_H = 578;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 

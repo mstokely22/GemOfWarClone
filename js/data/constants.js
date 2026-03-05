@@ -6,7 +6,7 @@ export const GEM_TYPES   = ['red','blue','green','yellow','purple','brown','skul
 export const GEM_SYMBOLS = { red:'🔥', blue:'💧', green:'🌿', yellow:'⚡', purple:'✨', brown:'🪨', skull:'💀' };
 
 export const BOARD_SIZE  = 8;
-export const GEM_SIZE    = 62;   // px (matches CSS --gem-size)
+export const GEM_SIZE    = 66;   // px (matches CSS --gem-size)
 export const GEM_GAP     = 4;    // px
 export const CELL        = GEM_SIZE + GEM_GAP;  // 66px per grid cell
 

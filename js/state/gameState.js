@@ -6,7 +6,7 @@ import { save }                      from './save.js';
 import { CHAR_BY_ID }                from '../data/characters.js';
 import { CLASS_BY_ID }               from '../data/classes.js';
 import { EQUIP_BY_ID }               from '../data/equipment.js';
-import { levelFromXp, statBonusAtLevel, getActiveMilestones, isSlotUnlocked }
+import { statBonusAtStars, getActiveMilestones, isSlotUnlocked }
   from '../data/leveling.js';
 import { weaponUpgradeBonus, armorUpgradeBonus } from '../data/materials.js';
 import { RARITY_ORDER }              from '../data/constants.js';
@@ -24,7 +24,10 @@ export const state = {
 
 // ── baseTroop — used for enemies (flat template) ──────────────
 export function baseTroop(tpl) {
-  return { ...tpl, life: tpl.maxLife, mana: 0, _deathLogged: false, passives: [] };
+  // Enemies have a single color string — normalize to colors array
+  const colors = Array.isArray(tpl.color) ? [...tpl.color]
+               : tpl.color ? [tpl.color] : ['brown'];
+  return { ...tpl, colors, color: colors[0], life: tpl.maxLife, shield: tpl.armor ?? 0, mana: 0, _deathLogged: false, passives: [] };
 }
 
 // ── assembleTroop — build a player troop from class + equipment ─
@@ -32,40 +35,34 @@ export function assembleTroop(charId) {
   const char  = CHAR_BY_ID[charId];
   const cls   = CLASS_BY_ID[char.classId];
   const cData = save.charData[charId] || {};
-  const totalXp = cData.xp || 0;
-  const level = levelFromXp(totalXp);
+  const stars = cData.stars || 1;
 
   // --- Base stats from class ---
   let attack  = cls.baseAttack;
   let armor   = cls.baseArmor;
   let maxLife = cls.baseMaxLife;
 
-  // --- Level growth ---
-  const growth = statBonusAtLevel(cls.statGrowth, level);
+  // --- Star growth ---
+  const growth = statBonusAtStars(cls.statGrowth, stars);
   attack  += growth.attack;
   armor   += growth.armor;
   maxLife += growth.maxLife;
 
   // --- Collect passives from milestones ---
-  const passives = getActiveMilestones(cls.milestones, level);
+  const passives = getActiveMilestones(cls.milestones, stars);
 
   // --- Apply milestone stat passives ---
   for (const p of passives) {
-    if (p.id === 'warrior_fortitude') armor += 5;
-    if (p.id === 'warrior_warlord')  { attack += 5; armor += 5; }
-    if (p.id === 'warrior_resilience') maxLife += 10;
-    if (p.id === 'priest_aegis')     maxLife += 8;
-    if (p.id === 'mage_ward')        armor += 6;
-    if (p.id === 'thief_shadow')     attack += 8;
-    if (p.id === 'paladin_shield')   armor += 6;
-    if (p.id === 'paladin_valor')    { maxLife += 10; armor += 3; }
-    if (p.id === 'ranger_apex')      attack += 6;
+    if (p.id === 'warrior_fortitude') armor   += 5;
+    if (p.id === 'paladin_shield')    armor   += 6;
+    if (p.id === 'paladin_valor')     { maxLife += 10; armor += 3; }
+    if (p.id === 'ranger_apex')       attack  += 6;
   }
 
   // --- Weapon ---
   const weaponId = cData.weapon;
   const weapon   = weaponId ? EQUIP_BY_ID[weaponId] : null;
-  let manaColor  = 'brown'; // fallback bare-hand
+  let manaColors = ['brown']; // fallback bare-hand
   let manaCost   = 99;
   let spell      = 'Unarmed';
   let spellDesc  = 'No weapon equipped';
@@ -76,7 +73,10 @@ export function assembleTroop(charId) {
     attack    += weapon.baseAttackBonus;
     const wUp  = weaponUpgradeBonus(weapon.rarity, wLevel);
     attack    += wUp.attack;
-    manaColor  = weapon.manaColor;
+    // Support single string or array of mana colors
+    manaColors = Array.isArray(weapon.manaColor)
+      ? [...weapon.manaColor]
+      : [weapon.manaColor];
     manaCost   = weapon.manaCost;
     // Archmage passive: -3 mana cost
     if (passives.some(p => p.id === 'mage_archmage')) manaCost = Math.max(1, manaCost - 3);
@@ -98,7 +98,7 @@ export function assembleTroop(charId) {
   }
 
   // --- Accessories ---
-  const acc2Unlocked = isSlotUnlocked(cls.milestones, level, 'acc2');
+  const acc2Unlocked = isSlotUnlocked(cls.milestones, stars, 'acc2');
   const accSlots = ['acc1'];
   if (acc2Unlocked) accSlots.push('acc2');
 
@@ -111,6 +111,13 @@ export function assembleTroop(charId) {
     if (acc.stats.armor)   armor   += acc.stats.armor;
     if (acc.stats.maxLife) maxLife += acc.stats.maxLife;
     if (acc.passive) passives.push({ ...acc.passive });
+    // Accessory can grant bonus mana colors
+    if (acc.bonusColor) {
+      const extra = Array.isArray(acc.bonusColor) ? acc.bonusColor : [acc.bonusColor];
+      for (const c of extra) {
+        if (!manaColors.includes(c)) manaColors.push(c);
+      }
+    }
   }
 
   // --- Determine display rarity (highest equipped item rarity) ---
@@ -131,9 +138,10 @@ export function assembleTroop(charId) {
     className:  cls.name,
     archetype:  cls.archetype,
     emoji:      cls.emoji,
-    color:      manaColor,
+    color:      manaColors[0],    // primary color (backward compat)
+    colors:     manaColors,       // all accepted mana colors (1-3)
     rarity,
-    level,
+    stars,
     attack,
     armor,
     maxLife,
@@ -144,6 +152,7 @@ export function assembleTroop(charId) {
     passives,
     // Runtime fields (set at battle start)
     life:       maxLife,
+    shield:     armor,
     mana:       0,
     _deathLogged: false,
   };
@@ -159,8 +168,8 @@ export function initState(playerTeamData, enemyTeamData) {
 
   state.board       = [];
   state.playerTeam  = playerTeamData.map(t =>
-    // If it looks pre-assembled (has charId), use as-is; otherwise baseTroop
-    t.charId ? { ...t, life: t.maxLife, mana: 0, _deathLogged: false }
+    // If it looks pre-assembled (has charId), reset runtime fields
+    t.charId ? { ...t, life: t.maxLife, shield: t.armor, mana: 0, _deathLogged: false }
              : baseTroop(t)
   );
   state.enemyTeam   = enemyTeamData.map(baseTroop);

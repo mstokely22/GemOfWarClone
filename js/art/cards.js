@@ -169,7 +169,8 @@ function adjustColor(hex, amount) {
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 }
 
-export function heroPortrait(hero) {
+export function heroPortrait(hero, uid = '') {
+  const gid = `port_bg${uid}`;
   const color = ARCHETYPE_COLORS[hero.color] || '#7b2fff';
   // Use troop.archetype directly if present (player troops), fall back to keyword-sniffing for enemies
   const archetype = hero.archetype || guessArchetype(hero);
@@ -179,15 +180,15 @@ export function heroPortrait(hero) {
   };
   const rarC = rarColors[hero.rarity] || '#8a9ba8';
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 42 42" width="38" height="38">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 42 42" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
   <defs>
-    <radialGradient id="port_bg" cx="50%" cy="40%" r="65%">
+    <radialGradient id="${gid}" cx="50%" cy="40%" r="65%">
       <stop offset="0%"   stop-color="${adjustColor(color, -60)}" stop-opacity="0.9"/>
       <stop offset="100%" stop-color="#0d0821" stop-opacity="0.95"/>
     </radialGradient>
   </defs>
   <!-- Background -->
-  <rect x="1" y="1" width="40" height="40" rx="5" fill="url(#port_bg)" stroke="${rarC}" stroke-width="1.2"/>
+  <rect x="1" y="1" width="40" height="40" rx="5" fill="url(#${gid})" stroke="${rarC}" stroke-width="1.2"/>
   <!-- Archetype silhouette -->
   ${pathFn(color)}
   <!-- Rarity corner gem -->

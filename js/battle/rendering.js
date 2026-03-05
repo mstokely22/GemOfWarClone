@@ -2,7 +2,7 @@
 //  GEMS OF COMBAT — Battle Team Panel Rendering
 // ============================================================
 import { state }              from '../state/gameState.js';
-import { cardFrame, heroPortrait } from '../art/cards.js';
+import { heroPortrait }       from '../art/cards.js';
 import { iconSword, iconShield, iconHeart } from '../art/icons.js';
 
 // ── Rendering callbacks ───────────────────────────────────────
@@ -30,39 +30,52 @@ export function renderPanel(containerId, team, isPlayer) {
       (troop.life <= 0 ? ' dead' : '') +
       (canCast         ? ' can-cast' : '');
 
-    const hpPct   = Math.max(0, (troop.life / troop.maxLife) * 100).toFixed(1);
-    const manaPct = Math.max(0, (troop.mana  / troop.manaCost) * 100).toFixed(1);
+    const hpPct     = Math.max(0, (troop.life / troop.maxLife) * 100).toFixed(1);
+    const manaPct   = Math.max(0, (troop.mana  / troop.manaCost) * 100).toFixed(1);
+    const hasShield = (troop.armor ?? 0) > 0;
+    const shieldPct = hasShield
+      ? Math.max(0, ((troop.shield ?? 0) / troop.armor) * 100).toFixed(1)
+      : '0';
 
-    // SVG card frame overlay (rarity-based)
-    const rarity = troop.rarity || 'common';
+    // Portrait with unique gradient ID to avoid SVG id collisions across cards
+    const uid = `${isPlayer ? 'p' : 'e'}${i}`;
+    const portrait = heroPortrait(troop, uid);
 
-    // SVG portrait
-    const portrait = heroPortrait(troop);
+    // Multi-color support
+    const colors = troop.colors || [troop.color];
+    const colorDots = colors.map(c => `<div class="mana-color-dot" style="background:var(--${c})"></div>`).join('');
+    // Card background gradient from mana colors
+    const bgColors = colors.map(c => `var(--${c})`);
+    const bgGrad = colors.length === 1
+      ? `radial-gradient(circle at 30% 30%, ${bgColors[0]}, transparent 70%)`
+      : `linear-gradient(135deg, ${bgColors.map((c, i) => `${c} ${Math.round(i / (bgColors.length - 1) * 100)}%`).join(', ')})`;
+    // Mana bar bg class: use primary color
+    const primaryColor = colors[0];
 
     card.innerHTML = `
-      ${cardFrame(rarity)}
-      <div class="card-inner">
-        <div class="card-portrait-row">
-          <div class="card-portrait">${portrait}</div>
-          <div class="card-title-block">
-            <div class="troop-name">${troop.name}</div>
+      <div class="card-portrait-bg" style="background:${bgGrad};opacity:0.18">${portrait}</div>
+      <div class="card-overlay">
+        <div class="card-name">${troop.name}</div>
+        <div class="card-stat-chips">
+          <span class="stat-chip">${iconSword()} ${troop.attack}</span>
+          <span class="stat-chip">${iconShield()} ${troop.shield ?? 0}/${troop.armor ?? 0}</span>
+          <span class="stat-chip">${iconHeart()} ${troop.life}/${troop.maxLife}</span>
+        </div>
+        <div class="card-bars">
+          <div class="hp-bar-bg"><div class="hp-bar-fill" style="width:${hpPct}%"></div></div>
+          ${hasShield ? `<div class="shield-bar-bg"><div class="shield-bar-fill" style="width:${shieldPct}%"></div></div>` : ''}
+        </div>
+        <div class="card-mana-section">
+          <div class="mana-row">
+            <div class="mana-color-dots">${colorDots}</div>
+            <div class="mana-bar-wrap">
+              <div class="mana-bar-bg ${primaryColor}"><div class="mana-bar-fill ${primaryColor}" style="width:${manaPct}%"></div></div>
+            </div>
           </div>
+          <div class="card-spell-label">${troop.spell} (${troop.mana}/${troop.manaCost})</div>
         </div>
-        <div class="troop-stats">
-          <span title="Attack">${iconSword()} ${troop.attack}</span>
-          <span title="Armor">${iconShield()} ${troop.armor}</span>
-          <span title="Life">${iconHeart()} ${troop.life}/${troop.maxLife}</span>
-        </div>
-        <div class="hp-bar-bg"><div class="hp-bar-fill" style="width:${hpPct}%"></div></div>
-        <div class="mana-row">
-          <div class="mana-color-dot" style="background:var(--${troop.color})"></div>
-          <div class="mana-bar-wrap">
-            <div class="mana-label">${troop.spell} (${troop.mana}/${troop.manaCost})</div>
-            <div class="mana-bar-bg"><div class="mana-bar-fill ${troop.color}" style="width:${manaPct}%"></div></div>
-          </div>
-        </div>
-        ${canCast ? '<div class="cast-hint">&#9654; CAST</div>' : ''}
       </div>
+      ${canCast ? '<div class="cast-ready-badge">⚡ READY</div>' : ''}
     `;
 
     if (canCast) card.addEventListener('click', () => _castSpellFn(i));

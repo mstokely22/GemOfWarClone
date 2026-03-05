@@ -23,11 +23,7 @@ function rollPack(packId) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function getDuplicateGold(rarity) {
-  return { common: 20, uncommon: 50, rare: 120, epic: 350, legendary: 800 }[rarity] ?? 20;
-}
-
-// ── Packs store ───────────────────────────────────────────────
+// ── Packs store ─────────────────────────────────────────────────
 export function renderPacks() {
   document.getElementById('hud-gold').textContent = save.gold;
 
@@ -133,15 +129,13 @@ export function revealGachaCard(equip, isNew) {
   document.getElementById('gacha-hero-stats').textContent  = getEquipStatsText(equip);
 
   const badge = document.getElementById('gacha-new-badge');
+  // Always add item to inventory (no auto-dismantle)
+  save.inventory.push(equip.id);
   if (isNew) {
     badge.textContent = '✨ NEW ITEM!';
     badge.className   = 'gacha-badge new';
-    save.inventory.push(equip.id);
   } else {
-    // Duplicate — player can keep (adds another copy) or get gold
-    const compensation = getDuplicateGold(equip.rarity);
-    save.gold += compensation;
-    badge.textContent = `💰 Duplicate (+${compensation}g)`;
+    badge.textContent = '📦 Duplicate!';
     badge.className   = 'gacha-badge dupe';
   }
   writeSave();

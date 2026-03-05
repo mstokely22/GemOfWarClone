@@ -33,7 +33,9 @@ export function processMana(matched, isPlayer) {
   for (const [color, amount] of Object.entries(counts)) {
     if (color === 'skull') continue;
     for (const troop of team) {
-      if (troop.life <= 0 || troop.color !== color) continue;
+      // colors array supports multi-color weapons & accessory bonus colors
+      const troopColors = troop.colors || [troop.color];
+      if (troop.life <= 0 || !troopColors.includes(color)) continue;
       let gain = amount;
       // Passive: mage_focus — +1 bonus mana per color match
       if (has(troop, 'mage_focus')) gain += 1;
@@ -60,7 +62,8 @@ export function processMana(matched, isPlayer) {
     if (color === 'skull') continue;
     if (amount >= 5) {
       for (const troop of team) {
-        if (troop.life > 0 && has(troop, 'mage_resonance') && troop.color === color) {
+        const troopColors = troop.colors || [troop.color];
+        if (troop.life > 0 && has(troop, 'mage_resonance') && troopColors.includes(color)) {
           troop.mana = Math.min(troop.manaCost, troop.mana + 3);
         }
       }
@@ -78,24 +81,44 @@ export function processMana(matched, isPlayer) {
       const attacker = atkTeam[atkIdx];
       const defender = defTeam[defIdx];
       const bonus    = Math.max(0, n - 3) * SKULL_BONUS_PER_GEM;
-      let dmg        = Math.max(1, attacker.attack + bonus - defender.armor);
+      let rawDmg     = attacker.attack + bonus;
 
       // Passive: warrior_fury — skull attacks deal +3 damage
-      if (has(attacker, 'warrior_fury')) dmg += 3;
+      if (has(attacker, 'warrior_fury')) rawDmg += 3;
+      // Passive: paladin_smite — skull attacks deal +4 damage
+      if (has(attacker, 'paladin_smite')) rawDmg += 4;
+      // Passive: thief_poison — +2 extra damage
+      if (has(attacker, 'thief_poison')) rawDmg += 2;
+      // Passive: ranger_multishot — extra 3 dmg to random 2nd enemy
+      if (has(attacker, 'ranger_multishot')) {
+        const others = defTeam.filter((t, i) => i !== defIdx && t.life > 0);
+        if (others.length) {
+          const target = others[Math.floor(Math.random() * others.length)];
+          const absorbed2 = Math.min(target.shield ?? 0, 3);
+          target.shield = (target.shield ?? 0) - absorbed2;
+          const ld2 = 3 - absorbed2;
+          if (ld2 > 0) target.life = Math.max(0, target.life - ld2);
+        }
+      }
+      rawDmg = Math.max(1, rawDmg);
 
-      // Passive: thief_poison — +2 damage ignoring armor
-      if (has(attacker, 'thief_poison')) dmg += 2;
+      // Shield absorbs damage first
+      const absorbed = Math.min(defender.shield ?? 0, rawDmg);
+      defender.shield = (defender.shield ?? 0) - absorbed;
+      const lifeDmg  = rawDmg - absorbed;
 
       // Passive: thief_evasion — 15% chance defender dodges skull attack
       if (has(defender, 'thief_evasion') && Math.random() < 0.15) {
+        // Undo the shield absorption on dodge
+        defender.shield = (defender.shield ?? 0) + absorbed;
         addBroadcast(`🌀 ${defender.name} DODGED!`, 'bc-system');
         skullHit = null;
       } else {
-        defender.life = Math.max(0, defender.life - dmg);
+        if (lifeDmg > 0) defender.life = Math.max(0, defender.life - lifeDmg);
 
-        // Passive: lifesteal — attacker heals 20% of damage dealt
-        if (has(attacker, 'lifesteal')) {
-          const heal = Math.ceil(dmg * 0.2);
+        // Passive: lifesteal — attacker heals 20% of life damage dealt
+        if (has(attacker, 'lifesteal') && lifeDmg > 0) {
+          const heal = Math.ceil(lifeDmg * 0.2);
           attacker.life = Math.min(attacker.maxLife, attacker.life + heal);
         }
 
@@ -105,18 +128,22 @@ export function processMana(matched, isPlayer) {
           attacker.life = Math.max(0, attacker.life - reflect);
         }
 
-        // Passive: cleave_attack or warrior_cleave — hit 2nd enemy for 50% dmg
+        // Passive: cleave_attack or warrior_cleave — hit 2nd enemy for 50% raw dmg
         if (has(attacker, 'cleave_attack') || has(attacker, 'warrior_cleave')) {
           const second = defTeam.findIndex((t, idx) => idx !== defIdx && t.life > 0);
           if (second >= 0) {
-            const cleaveDmg = Math.max(1, Math.floor(dmg * 0.5));
-            defTeam[second].life = Math.max(0, defTeam[second].life - cleaveDmg);
+            const cleaveDmg = Math.max(1, Math.floor(rawDmg * 0.5));
+            const a2 = Math.min(defTeam[second].shield ?? 0, cleaveDmg);
+            defTeam[second].shield = (defTeam[second].shield ?? 0) - a2;
+            const cld = cleaveDmg - a2;
+            if (cld > 0) defTeam[second].life = Math.max(0, defTeam[second].life - cld);
           }
         }
 
-        if (dmg >= 20)      addBroadcast(`💀 ${dmg} DAMAGE!`, 'bc-damage bc-big');
-        else if (dmg >= 10) addBroadcast(`💀 ${dmg} DMG`,     'bc-damage');
-        skullHit = { atkIdx, defIdx, dmg };
+        const displayDmg = rawDmg;
+        if (displayDmg >= 20)      addBroadcast(`💀 ${displayDmg} DAMAGE!`, 'bc-damage bc-big');
+        else if (displayDmg >= 10) addBroadcast(`💀 ${displayDmg} DMG`,     'bc-damage');
+        skullHit = { atkIdx, defIdx, dmg: rawDmg };
       }
     }
   }
@@ -157,16 +184,10 @@ function applyEndOfTurnPassives() {
 export function applyBattleStartPassives() {
   for (const troop of state.playerTeam) {
     if (troop.life <= 0) continue;
-    // Passive: priest_blessing — +4 armor to all allies at battle start
+    // Passive: priest_blessing — +4 shield to all allies at battle start
     if (has(troop, 'priest_blessing')) {
       for (const ally of state.playerTeam) {
-        if (ally.life > 0) ally.armor += 4;
-      }
-    }
-    // Passive: paladin_holy_aura — +3 armor to all allies at battle start
-    if (has(troop, 'paladin_holy_aura')) {
-      for (const ally of state.playerTeam) {
-        if (ally.life > 0) ally.armor += 3;
+        if (ally.life > 0) ally.shield = (ally.shield ?? 0) + 4;
       }
     }
   }

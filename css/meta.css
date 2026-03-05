@@ -458,6 +458,7 @@
 .picker-card .picker-emoji  { font-size: 1.8rem; }
 .picker-card .picker-name   { font-size: .82rem; font-weight: 700; margin-top: 4px; }
 .picker-card .picker-rarity { font-size: .7rem; opacity: .85; margin-bottom: 2px; }
+.picker-card .picker-mana   { font-size: .7rem; color: #ccc; display: flex; align-items: center; gap: 3px; margin: 2px 0; }
 .picker-card.used { opacity: .5; cursor: not-allowed; }
 
 /* ══════════════════════════════════════════════════════════════
@@ -509,6 +510,38 @@
   border-radius: 3px;
   transition: width .3s;
 }
+.hc-stars {
+  font-size: .85rem;
+  margin-top: 2px;
+  letter-spacing: 1px;
+}
+
+/* Hero Draw area */
+.hero-draw-area {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+.hero-draw-btn {
+  background: linear-gradient(135deg, #6a1a9a, #3a0a6e);
+  color: #f0e0ff;
+  border: 1px solid #c77dff;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-size: .95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+}
+.hero-draw-btn:enabled:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(199,125,255,.4);
+}
+.hero-draw-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
 
 /* ── Stats row ────────────────────────────────────────── */
 .hc-stat-row {
@@ -542,12 +575,39 @@
 .hc-empty { color: #555; }
 .hc-mana-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   flex-shrink: 0;
-  box-shadow: 0 0 4px rgba(255,255,255,.2);
+  box-shadow: 0 0 6px rgba(255,255,255,.35);
+  border: 1.5px solid rgba(255,255,255,.3);
+  vertical-align: middle;
 }
+.hc-mana-dots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Mana color pip used in equip overlays */
+.mana-pip {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin: 0 3px;
+  border: 1.5px solid rgba(255,255,255,.25);
+  box-shadow: 0 0 5px rgba(255,255,255,.3);
+}
+.mana-pip.red    { background: var(--red); }
+.mana-pip.blue   { background: var(--blue); }
+.mana-pip.green  { background: var(--green); }
+.mana-pip.yellow { background: var(--yellow); }
+.mana-pip.purple { background: var(--purple); }
+.mana-pip.brown  { background: var(--brown); }
 
 /* ── Manage gear button ───────────────────────────────── */
 .hero-equip-btn {
@@ -829,11 +889,16 @@
   flex-direction: column;
   min-height: unset; /* override .screen's min-height:100vh */
   /* Visual size = design size × scale */
-  width:  calc(980px * var(--battle-scale));
-  height: calc(570px * var(--battle-scale));
+  width:  calc(1080px * var(--battle-scale));
+  height: calc(578px * var(--battle-scale));
   overflow: hidden;
   /* Centre in the viewport on very wide screens */
   margin: 0 auto;
+}
+
+/* Prevent body scroll when battle is showing */
+body:has(#screen-battle:not(.hidden)) {
+  overflow: hidden;
 }
 
 /* Overlay buttons */

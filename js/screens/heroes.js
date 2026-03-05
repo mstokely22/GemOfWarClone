@@ -1,24 +1,40 @@
 // ============================================================
 //  GEMS OF COMBAT — Roster / Character Management Screen
-//  Shows all characters, their levels, equipment, and lets
-//  the player manage equipment loadouts.
+//  v5: Stars replace levels. Hero Draw mechanic.
 // ============================================================
 import { save, writeSave, ensureCharData } from '../state/save.js';
-import { CHARACTERS, CHAR_BY_ID }         from '../data/characters.js';
+import { CHARACTERS, CHAR_BY_ID, DRAWABLE_CHARS } from '../data/characters.js';
 import { CLASS_BY_ID }                    from '../data/classes.js';
 import { EQUIP_BY_ID, WEAPONS, ARMORS, ACCESSORIES } from '../data/equipment.js';
 import { weaponUpgradeBonus, armorUpgradeBonus } from '../data/materials.js';
-import { levelFromXp, xpProgress, getActiveMilestones, isSlotUnlocked }
+import { statBonusAtStars, getActiveMilestones, isSlotUnlocked, MAX_STARS }
   from '../data/leveling.js';
 import { RARITY_COLORS, RARITY_GLOWS }   from '../data/constants.js';
 import { showScreen }                     from './navigation.js';
 
+
 let selectedCharId = null;
+
+function starsHtml(stars, max = 5) {
+  return '⭐'.repeat(stars) + '☆'.repeat(max - stars);
+}
 
 export function renderHeroes() {
   document.getElementById('hud-gold').textContent = save.gold;
   const grid = document.getElementById('heroes-grid');
   grid.innerHTML = '';
+
+  // Hero Draw button
+  const heroDraws = save.heroDraws || 0;
+  const drawArea = document.createElement('div');
+  drawArea.className = 'hero-draw-area';
+  drawArea.innerHTML = `
+    <button id="hero-draw-btn" class="hero-draw-btn" ${heroDraws < 1 ? 'disabled' : ''}>
+      🎲 Hero Draw (${heroDraws} available)
+    </button>
+  `;
+  grid.appendChild(drawArea);
+  drawArea.querySelector('#hero-draw-btn').addEventListener('click', performHeroDraw);
 
   // Show unlocked first, then locked
   const sorted = [...CHARACTERS].sort((a, b) => {
@@ -32,7 +48,7 @@ export function renderHeroes() {
     const owned = save.unlockedCharIds.includes(char.charId);
     const cls   = CLASS_BY_ID[char.classId];
     const cData = save.charData[char.charId];
-    const level = cData ? levelFromXp(cData.xp || 0) : 1;
+    const stars = cData ? (cData.stars || 1) : 0;
 
     const card = document.createElement('div');
     card.className = 'hero-card' + (owned ? '' : ' locked');
@@ -43,15 +59,15 @@ export function renderHeroes() {
       const armor  = cData?.armor  ? EQUIP_BY_ID[cData.armor]  : null;
       const acc1   = cData?.acc1   ? EQUIP_BY_ID[cData.acc1]   : null;
       const acc2   = cData?.acc2   ? EQUIP_BY_ID[cData.acc2]   : null;
-      const prog   = xpProgress(cData?.xp || 0);
       const wUpg   = save.upgrades[cData?.weapon] || 0;
       const aUpg   = save.upgrades[cData?.armor]  || 0;
 
       // Compute effective stats
       const growth = cls.statGrowth || {};
-      let atk  = (cls.baseAttack  || 0) + Math.floor((level - 1) * (growth.attack  || 0));
-      let arm  = (cls.baseArmor   || 0) + Math.floor((level - 1) * (growth.armor   || 0));
-      let hp   = (cls.baseMaxLife || 30) + Math.floor((level - 1) * (growth.maxLife || 0));
+      const bonus  = statBonusAtStars(growth, stars);
+      let atk = (cls.baseAttack  || 0) + bonus.attack;
+      let arm = (cls.baseArmor   || 0) + bonus.armor;
+      let hp  = (cls.baseMaxLife || 22) + bonus.maxLife;
       if (weapon) {
         atk += (weapon.baseAttackBonus || 0) + weaponUpgradeBonus(weapon.rarity, wUpg).attack;
       }
@@ -60,21 +76,27 @@ export function renderHeroes() {
         arm += (armor.baseArmorBonus || 0) + aBonus.armor;
         hp  += (armor.baseLifeBonus  || 0) + aBonus.maxLife;
       }
-      if (acc1?.stats) {
-        atk += acc1.stats.attack  || 0;
-        arm += acc1.stats.armor   || 0;
-        hp  += acc1.stats.maxLife || 0;
-      }
-      if (acc2?.stats) {
-        atk += acc2.stats.attack  || 0;
-        arm += acc2.stats.armor   || 0;
-        hp  += acc2.stats.maxLife || 0;
-      }
+      if (acc1?.stats) { atk += acc1.stats.attack || 0; arm += acc1.stats.armor || 0; hp += acc1.stats.maxLife || 0; }
+      if (acc2?.stats) { atk += acc2.stats.attack || 0; arm += acc2.stats.armor || 0; hp += acc2.stats.maxLife || 0; }
 
-      // Weapon skill color dot
-      const manaColor = weapon?.manaColor || null;
-      const manaHtml  = manaColor
-        ? `<span class="hc-mana-dot" style="background:var(--${manaColor})" title="${manaColor} mana"></span>`
+      const manaColors = weapon
+        ? (Array.isArray(weapon.manaColor) ? weapon.manaColor : [weapon.manaColor])
+        : [];
+      // Add bonus colors from accessories
+      for (const acc of [acc1, acc2]) {
+        if (acc?.bonusColor) {
+          const extra = Array.isArray(acc.bonusColor) ? acc.bonusColor : [acc.bonusColor];
+          for (const c of extra) { if (!manaColors.includes(c)) manaColors.push(c); }
+        }
+      }
+      const manaHtml = manaColors.map(c =>
+        `<span class="hc-mana-dot" style="background:var(--${c})" title="${c} mana"></span>`
+      ).join('');
+      // Card background gradient from mana colors
+      const cardBg = manaColors.length > 0
+        ? manaColors.length === 1
+          ? `border-left: 4px solid var(--${manaColors[0]}); background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 100%);`
+          : `border-image: linear-gradient(to bottom, ${manaColors.map(c => `var(--${c})`).join(', ')}) 1; border-left-width: 4px; border-left-style: solid;`
         : '';
 
       card.innerHTML = `
@@ -82,9 +104,10 @@ export function renderHeroes() {
           <div class="hc-emoji">${cls.emoji}</div>
           <div class="hc-title-block">
             <div class="hc-name">${char.name}</div>
-            <div class="hc-class">${cls.name} — Lv.${level}</div>
-            <div class="hc-xp-bar"><div class="hc-xp-fill" style="width:${prog.pct}%"></div></div>
+            <div class="hc-class">${cls.name}</div>
+            <div class="hc-stars">${starsHtml(stars)}</div>
           </div>
+          <div class="hc-mana-dots">${manaHtml}</div>
         </div>
         <div class="hc-stat-row">
           <span title="Attack">⚔️ ${atk}</span>
@@ -92,7 +115,7 @@ export function renderHeroes() {
           <span title="HP">❤️ ${hp}</span>
         </div>
         <div class="hc-equip-row">
-          <span class="hc-equip-item">${weapon ? `${manaHtml} ${weapon.icon || '⚔️'} ${weapon.name}` : '<span class="hc-empty">No weapon</span>'}</span>
+          <span class="hc-equip-item">${weapon ? `${weapon.icon || '⚔️'} ${weapon.name}` : '<span class="hc-empty">No weapon</span>'}</span>
           <span class="hc-equip-item">${armor  ? `${armor.icon || '🛡'} ${armor.name}` : '<span class="hc-empty">No armor</span>'}</span>
         </div>
         <button class="hero-equip-btn" data-char="${char.charId}">Manage Gear</button>
@@ -102,13 +125,6 @@ export function renderHeroes() {
         openEquipOverlay(char.charId);
       });
     } else {
-      let condition;
-      if (char.unlockCondition.startsWith('clear:')) {
-        const dName = char.unlockCondition.slice(6).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        condition = `Clear ${dName}`;
-      } else {
-        condition = char.unlockCondition;
-      }
       card.innerHTML = `
         <div class="hc-top-row">
           <div class="hc-emoji locked-emoji">?</div>
@@ -117,7 +133,7 @@ export function renderHeroes() {
             <div class="hc-class" style="color:#666">${cls.name}</div>
           </div>
         </div>
-        <div class="hc-lock-msg">🔒 ${condition}</div>
+        <div class="hc-lock-msg">🔒 Use a Hero Draw to unlock</div>
       `;
     }
     grid.appendChild(card);
@@ -126,24 +142,56 @@ export function renderHeroes() {
   showScreen('heroes');
 }
 
+// ── Hero Draw ────────────────────────────────────────────────
+function performHeroDraw() {
+  if ((save.heroDraws || 0) < 1) return;
+  save.heroDraws -= 1;
+
+  // Find unlockable heroes (not yet unlocked)
+  const unowned = DRAWABLE_CHARS.filter(c => !save.unlockedCharIds.includes(c.charId));
+  if (unowned.length > 0) {
+    // Unlock a random new hero
+    const char = unowned[Math.floor(Math.random() * unowned.length)];
+    save.unlockedCharIds.push(char.charId);
+    ensureCharData(char.charId); // assigns starter weapon
+    writeSave();
+    alert(`🎉 ${char.name} joined your roster!`);
+  } else {
+    // All heroes unlocked — upgrade a random hero's stars (cap MAX_STARS)
+    const upgradeable = DRAWABLE_CHARS.filter(c => (save.charData[c.charId]?.stars || 1) < MAX_STARS);
+    if (upgradeable.length > 0) {
+      const char = upgradeable[Math.floor(Math.random() * upgradeable.length)];
+      save.charData[char.charId].stars = (save.charData[char.charId].stars || 1) + 1;
+      writeSave();
+      alert(`⭐ ${char.name} upgraded to ${starsHtml(save.charData[char.charId].stars)}!`);
+    } else {
+      // All heroes at max stars — refund draw
+      save.heroDraws += 1;
+      writeSave();
+      alert('🌟 All heroes are already at max stars!');
+    }
+  }
+  renderHeroes();
+}
+
 // ── Equipment Management Overlay ──────────────────────────────
 function openEquipOverlay(charId) {
   selectedCharId = charId;
   const char  = CHAR_BY_ID[charId];
   const cls   = CLASS_BY_ID[char.classId];
   const cData = save.charData[charId];
-  const level = levelFromXp(cData?.xp || 0);
+  const stars = cData?.stars || 1;
 
   const overlay = document.getElementById('equip-overlay');
   if (!overlay) return;
 
   // Build overlay content
-  const milestones = getActiveMilestones(cls.milestones, level);
-  const acc2Open   = isSlotUnlocked(cls.milestones, level, 'acc2');
+  const milestones = getActiveMilestones(cls.milestones, stars);
+  const acc2Open   = isSlotUnlocked(cls.milestones, stars, 'acc2');
 
   let html = `
     <div class="equip-header">
-      <span>${char.name} — ${cls.name} Lv.${level}</span>
+      <span>${char.name} — ${cls.name} ${starsHtml(stars)}</span>
       <button id="equip-close-btn">✕</button>
     </div>
     <div class="equip-slots">
@@ -152,7 +200,7 @@ function openEquipOverlay(charId) {
       ${equipSlotHtml('acc1',   cData?.acc1,   '💎 Accessory 1', charId)}
       ${acc2Open 
         ? equipSlotHtml('acc2', cData?.acc2, '💎 Accessory 2', charId)
-        : '<div class="equip-slot locked"><span>🔒 Lv.10 — 2nd Accessory</span></div>'
+        : '<div class="equip-slot locked"><span>🔒 ⭐3 — 2nd Accessory</span></div>'
       }
     </div>
     ${milestones.length ? `
@@ -192,8 +240,9 @@ function equipStatLine(item, upgLevel = 0) {
   if (item.slot === 'weapon') {
     const upgBonus = weaponUpgradeBonus(item.rarity, upgLevel);
     const atkBonus = item.baseAttackBonus + (upgBonus.attack || 0);
-    const manaColor = item.manaColor ? `<span class="mana-pip ${item.manaColor}" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--gem-${item.manaColor},#888);vertical-align:middle;margin:0 2px"></span>` : '';
-    return `<div class="equip-stat-line">⚔️ +${atkBonus} ATK &nbsp;${manaColor}${item.manaCost}✦</div>
+    const weaponColors = Array.isArray(item.manaColor) ? item.manaColor : (item.manaColor ? [item.manaColor] : []);
+    const colorPips = weaponColors.map(c => `<span class="mana-pip ${c}"></span>`).join('');
+    return `<div class="equip-stat-line">⚔️ +${atkBonus} ATK &nbsp;${colorPips}${item.manaCost}✦</div>
             <div class="equip-skill-line"><em>${item.spell}:</em> ${item.spellDesc}</div>`;
   }
   if (item.slot === 'armor') {
@@ -208,6 +257,11 @@ function equipStatLine(item, upgLevel = 0) {
     if (item.stats?.armor)   statParts.push(`🛡 +${item.stats.armor} DEF`);
     if (item.stats?.life)    statParts.push(`❤️ +${item.stats.life} HP`);
     if (item.stats?.mana)    statParts.push(`✦ +${item.stats.mana} mana`);
+    // Show bonus mana color
+    if (item.bonusColor) {
+      const bc = Array.isArray(item.bonusColor) ? item.bonusColor : [item.bonusColor];
+      statParts.push(bc.map(c => `<span class="mana-pip ${c}"></span>`).join('') + ' +mana color');
+    }
     const statsStr = statParts.join(' &nbsp;') || '—';
     const passStr  = item.passive ? `<div class="equip-skill-line">🔮 <em>${item.passive.name}:</em> ${item.passive.desc}</div>` : '';
     return `<div class="equip-stat-line">${statsStr}</div>${passStr}`;
@@ -293,6 +347,10 @@ function openEquipPicker(charId, slot) {
       <div class="picker-emoji">${item.icon || '📦'}</div>
       <div class="picker-name" style="color:${rarC}">${item.name}${upgStr}</div>
       <div class="picker-rarity" style="color:${rarC}">${item.rarity}</div>
+      ${item.manaColor ? (() => {
+        const mc = Array.isArray(item.manaColor) ? item.manaColor : [item.manaColor];
+        return `<div class="picker-mana">${mc.map(c => `<span class="mana-pip ${c}"></span>`).join('')} ${mc.join(' + ')} mana</div>`;
+      })() : ''}
       ${equipStatLine(item, save.upgrades[item.id] || 0)}
     `;
     if (!used) {

@@ -69,16 +69,9 @@ export function xpPerMember(difficulty, livingCount) {
   return Math.floor(total / Math.max(1, livingCount));
 }
 
-// ── Stat Growth ───────────────────────────────────────────────
-// Returns the TOTAL bonus stats from leveling for a given class at a given level.
-// Growth rates are defined per-class in classes.js as { attack, armor, maxLife }.
-
-/**
- * @param {{ attack: number, armor: number, maxLife: number }} growth
- * @param {number} level
- */
+// ── Stat Growth (legacy — keep for any remaining references) ─
 export function statBonusAtLevel(growth, level) {
-  const lvl = level - 1; // level 1 = no bonus
+  const lvl = level - 1;
   return {
     attack:  Math.floor(growth.attack  * lvl),
     armor:   Math.floor(growth.armor   * lvl),
@@ -86,17 +79,33 @@ export function statBonusAtLevel(growth, level) {
   };
 }
 
-// ── Milestone helpers ─────────────────────────────────────────
+// ── Star system (v5) ────────────────────────────────────────
+export const MAX_STARS = 5;
+
 /**
- * Given a class's milestones map and a hero level,
- * return all active passives (array of { id, name, desc }).
- * @param {object} milestones — { level: { type, passiveId?, name, desc } }
- * @param {number} level
+ * Returns total stat bonus from a given star level.
+ * growth values are the per-star bonus defined in classes.js.
+ * @param {{ attack: number, armor: number, maxLife: number }} growth
+ * @param {number} stars  (1–5)
  */
-export function getActiveMilestones(milestones, level) {
+export function statBonusAtStars(growth, stars) {
+  const s = Math.max(0, (stars || 1) - 1);
+  return {
+    attack:  Math.floor(growth.attack  * s),
+    armor:   Math.floor(growth.armor   * s),
+    maxLife: Math.floor(growth.maxLife * s),
+  };
+}
+
+// ── Milestone helpers (works for both star-keyed and level-keyed) ─
+/**
+ * Given a class's milestones map and a hero's current stars,
+ * return all active passives (array of { id, name, desc }).
+ */
+export function getActiveMilestones(milestones, stars) {
   const result = [];
-  for (const [lvl, m] of Object.entries(milestones)) {
-    if (parseInt(lvl, 10) <= level && m.type === 'passive') {
+  for (const [key, m] of Object.entries(milestones)) {
+    if (parseInt(key, 10) <= stars && m.type === 'passive') {
       result.push({ id: m.passiveId, name: m.name, desc: m.desc });
     }
   }
@@ -104,14 +113,11 @@ export function getActiveMilestones(milestones, level) {
 }
 
 /**
- * Check if a specific slot is unlocked at the given level.
- * @param {object} milestones
- * @param {number} level
- * @param {string} slotName — e.g. 'acc2'
+ * Check if a specific slot is unlocked at the given star level.
  */
-export function isSlotUnlocked(milestones, level, slotName) {
-  for (const [lvl, m] of Object.entries(milestones)) {
-    if (parseInt(lvl, 10) <= level && m.type === 'slot' && m.slot === slotName) {
+export function isSlotUnlocked(milestones, stars, slotName) {
+  for (const [key, m] of Object.entries(milestones)) {
+    if (parseInt(key, 10) <= stars && m.type === 'slot' && m.slot === slotName) {
       return true;
     }
   }

@@ -23,7 +23,7 @@
   --brown:  #a0522d;
   --skull:  #7f8c8d;
   --extra-turn: #ffd700;
-  --gem-size: 62px;
+  --gem-size: 66px;
   --gem-gap:  4px;
   /* Responsive battle scale — set by scaleBattle() in app.js */
   --battle-scale: 1;
@@ -45,8 +45,8 @@ html, body {
   means the visual output perfectly fills #screen-battle.
 */
 #game-container {
-  width:  980px;
-  height: 570px;
+  width:  1080px;
+  height: 578px;
   display: flex;
   flex-direction: column;
   transform: scale(var(--battle-scale));
@@ -57,21 +57,22 @@ html, body {
 
 #battle-area {
   flex: 1;
-  display: flex;
-  gap: 10px;
-  padding: 4px 8px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  padding: 4px 4px;
   align-items: stretch;
-  overflow: hidden;
   min-height: 0;
+  overflow: hidden;
 }
 
-/* ── Center column ── */
+/* ── Center column: sized by the board, never grows or shrinks ── */
 #center-column {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  flex-shrink: 0;
 }
 
 /* ── Board Wrap (positions board + overlays) ── */
@@ -108,8 +109,8 @@ html, body {
 /* ── Game Board ── */
 #game-board {
   position: relative;
-  width:  524px;  /* 8 * (62 + 4) - 4 = 524 */
-  height: 524px;
+  width:  556px;  /* 8 * (66 + 4) - 4 = 556 */
+  height: 556px;
   background: #110826;
   border: 2px solid var(--border);
   border-radius: 10px;
@@ -185,9 +186,7 @@ html, body {
 
 /* ── Team Panels ── */
 .team-panel {
-  flex: 1;
   min-width: 0;
-  max-width: 200px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -196,6 +195,14 @@ html, body {
   border-radius: 10px;
   padding: 4px;
   transition: border-color .25s, box-shadow .25s;
+}
+.troops-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 548px;
 }
 .turn-active-player {
   border-color: var(--extra-turn);
@@ -214,16 +221,16 @@ html, body {
   padding-bottom: 4px;
   border-bottom: 1px solid var(--border);
 }
-.troops-list { display: flex; flex-direction: column; gap: 8px; }
-
-/* ── Troop Cards ── */
+/* ── Troop Cards — portrait-background style ── */
 .troop-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 10px 8px;
   position: relative;
-  transition: opacity .3s, filter .3s;
+  height: 110px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #0d0821;
+  transition: opacity .3s, filter .3s, border-color .25s, box-shadow .25s;
 }
 .troop-card.dead {
   opacity: .35;
@@ -232,41 +239,82 @@ html, body {
 }
 .troop-card.can-cast {
   border-color: var(--extra-turn);
-  box-shadow: 0 0 8px rgba(255,215,0,.5);
+  box-shadow: 0 0 10px rgba(255,215,0,.55), inset 0 0 8px rgba(255,215,0,.08);
   cursor: pointer;
 }
 .troop-card.can-cast:hover {
-  box-shadow: 0 0 14px rgba(255,215,0,.8);
+  box-shadow: 0 0 18px rgba(255,215,0,.9), inset 0 0 14px rgba(255,215,0,.14);
 }
-.troop-card .troop-name {
-  font-size: .85rem;
-  font-weight: 700;
-  margin-bottom: 4px;
+
+/* Portrait fills the full card as a faded background */
+.card-portrait-bg {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  opacity: 0.28;
+  pointer-events: none;
+  overflow: hidden;
 }
-.troop-card .troop-name .color-dot {
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.card-portrait-bg svg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
-.troop-card .troop-stats {
-  font-size: .72rem;
-  color: var(--text-dim);
-  display: flex;
-  gap: 6px;
-  margin-bottom: 5px;
-}
-.troop-card .troop-stats span { display: flex; align-items: center; gap: 2px; }
 
+/* Stats overlay sits above the portrait */
+.card-overlay {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 5px 7px 5px;
+  gap: 3px;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(13,8,33,0.72) 0%, rgba(13,8,33,0.45) 100%);
+}
+.card-name {
+  font-size: .74rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0,0,0,.8);
+  line-height: 1.2;
+}
+.card-stat-chips {
+  display: flex;
+  gap: 3px;
+}
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: .6rem;
+  font-weight: 700;
+  background: rgba(0,0,0,.5);
+  border-radius: 4px;
+  padding: 1px 4px;
+  white-space: nowrap;
+  flex: 1;
+  justify-content: center;
+}
+
+/* Bars section */
+.card-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
 /* Life bar */
 .hp-bar-bg {
-  height: 7px;
+  height: 6px;
   background: #1a0a2e;
   border-radius: 4px;
   overflow: hidden;
-  margin-bottom: 4px;
 }
 .hp-bar-fill {
   height: 100%;
@@ -275,27 +323,54 @@ html, body {
   transition: width .4s ease;
 }
 
-/* Mana bar */
+/* Shield bar */
+.shield-bar-bg {
+  height: 4px;
+  background: #1a0a2e;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.shield-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #5dade2, #2e86c1);
+  border-radius: 4px;
+  transition: width .4s ease;
+}
+
+/* Mana section at bottom of card */
+.card-mana-section { display: flex; flex-direction: column; gap: 2px; }
 .mana-row {
   display: flex;
   align-items: center;
   gap: 5px;
 }
+.mana-color-dots {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
 .mana-color-dot {
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   flex-shrink: 0;
-  box-shadow: 0 0 4px rgba(255,255,255,.25);
+  box-shadow: 0 0 6px rgba(255,255,255,.4);
+  border: 1.5px solid rgba(255,255,255,.25);
 }
 .mana-bar-wrap { flex: 1; min-width: 0; }
 .mana-bar-bg {
-  height: 7px;
-  background: #1a0a2e;
-  border-radius: 4px;
+  height: 10px;
+  background: rgba(255,255,255,.08);
+  border-radius: 5px;
   overflow: hidden;
-  margin-bottom: 4px;
 }
+/* Faded color backgrounds per mana type */
+.mana-bar-bg.red    { background: rgba(231,76,60,.2); }
+.mana-bar-bg.blue   { background: rgba(52,152,219,.2); }
+.mana-bar-bg.green  { background: rgba(39,174,96,.2); }
+.mana-bar-bg.yellow { background: rgba(241,196,15,.2); }
+.mana-bar-bg.purple { background: rgba(155,89,182,.2); }
+.mana-bar-bg.brown  { background: rgba(160,82,45,.2); }
 .mana-bar-fill {
   height: 100%;
   border-radius: 4px;
@@ -307,32 +382,36 @@ html, body {
 .mana-bar-fill.yellow { background: linear-gradient(90deg, var(--yellow), #9a6b00); }
 .mana-bar-fill.purple { background: linear-gradient(90deg, var(--purple), #6c3483); }
 .mana-bar-fill.brown  { background: linear-gradient(90deg, var(--brown),  #5d2a0e); }
-
-.troop-card .spell-name {
-  font-size: .7rem;
-  color: var(--accent);
-  font-weight: 600;
+.card-spell-label {
+  font-size: .6rem;
+  color: rgba(180,170,220,.85);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0,0,0,.7);
 }
-.troop-card .mana-label {
-  font-size: .68rem;
-  color: var(--text-dim);
-  text-align: right;
-}
-.cast-hint {
-  font-size: .68rem;
-  color: var(--extra-turn);
-  text-align: center;
-  margin-top: 3px;
-  font-weight: 600;
+
+/* READY badge — absolutely positioned, does NOT affect layout/height */
+.cast-ready-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: var(--extra-turn);
+  color: #1a1000;
+  font-size: .58rem;
+  font-weight: 900;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: .05em;
+  z-index: 5;
+  pointer-events: none;
   animation: pulse 1.2s ease-in-out infinite;
 }
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50%       { opacity: .4; }
+  50%       { opacity: .5; }
 }
+
 
 /* ── Overlay ── */
 #overlay {
@@ -485,4 +564,99 @@ html, body {
 @keyframes hintPulse {
   from { filter: brightness(1.1); box-shadow: 0 0  6px #ffd700aa; }
   to   { filter: brightness(1.8); box-shadow: 0 0 18px #ffd700ff; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HEROES SCREEN
+══════════════════════════════════════════════════════════════ */
+.hero-draw-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.75rem 1rem 0.5rem;
+  background: #1a1a2e;
+  border-bottom: 1px solid #333;
+}
+.hero-draw-btn {
+  padding: 0.55rem 1.4rem;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #7c4dff, #e040fb);
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.hero-draw-btn:hover:not(:disabled) { opacity: 0.9; transform: scale(1.03); }
+.hero-draw-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#heroes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  overflow-y: auto;
+}
+
+/* Hero card */
+.hero-card {
+  background: #1e1e30;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.hero-card:hover  { background: #2a2a45; }
+.hero-card.locked { opacity: 0.6; cursor: default; }
+
+.hc-top-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.hc-emoji { font-size: 2rem; line-height: 1; }
+.locked-emoji { filter: grayscale(1) opacity(0.5); }
+
+.hc-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.hc-name  { font-size: 1rem; font-weight: 700; color: #e0e0e0; }
+.hc-class { font-size: 0.78rem; color: #aaa; }
+.hc-stars { font-size: 0.9rem; letter-spacing: 1px; }
+
+.hc-stat-row {
+  display: flex;
+  gap: 0.8rem;
+  font-size: 0.8rem;
+  color: #bbb;
+}
+.hc-equip-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: #999;
+}
+.hc-equip-item {
+  background: #2c2c40;
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+}
+.hc-empty { color: #555; font-style: italic; }
+.hc-lock-msg { font-size: 0.8rem; color: #888; font-style: italic; }
+.hc-mana-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 2px;
 }
