@@ -2,6 +2,7 @@
 //  GEMS OF COMBAT — Equipment Database
 //  Weapons (class-locked), Armor (weight-classed), Accessories
 // ============================================================
+import { BOARD_SIZE } from './constants.js';
 
 // ── Helper: damage spells ─────────────────────────────────────
 function dmg(n) {
@@ -65,6 +66,142 @@ function buffShield(n) {
   };
 }
 
+// ── Lazy ref to destroyGems (injected from engine.js to avoid circular imports)
+let _destroyGems = null;
+export function injectDestroyGems(fn) { _destroyGems = fn; }
+
+// ── Board-targeting spell helpers ─────────────────────────────
+/** Consume an entire row (player picks which row) */
+function consumeRow() {
+  return (self) => {
+    return {
+      targetType: 'row',
+      resolve(r, _c) {
+        const coords = new Set();
+        for (let c = 0; c < BOARD_SIZE; c++) coords.add(`${r},${c}`);
+        _destroyGems(coords, true);
+      },
+    };
+  };
+}
+
+/** Consume an entire column (player picks which column) */
+function consumeColumn() {
+  return (self) => {
+    return {
+      targetType: 'column',
+      resolve(_r, c) {
+        const coords = new Set();
+        for (let r = 0; r < BOARD_SIZE; r++) coords.add(`${r},${c}`);
+        _destroyGems(coords, true);
+      },
+    };
+  };
+}
+
+/** Targeted 3×3 explosion (player picks center gem) */
+function explodeGem() {
+  return (self) => {
+    return {
+      targetType: 'gem',
+      resolve(r, c) {
+        const coords = new Set();
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+              coords.add(`${nr},${nc}`);
+            }
+          }
+        }
+        _destroyGems(coords, true);
+      },
+    };
+  };
+}
+
+/** Explode N random gems (no targeting needed) */
+function explodeRandom(n) {
+  return (self) => {
+    const { state } = _stateRef;
+    const all = [];
+    for (let r = 0; r < BOARD_SIZE; r++)
+      for (let c = 0; c < BOARD_SIZE; c++)
+        if (state.board[r][c]) all.push(`${r},${c}`);
+    // Shuffle and pick n
+    for (let i = all.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [all[i], all[j]] = [all[j], all[i]];
+    }
+    const coords = new Set(all.slice(0, Math.min(n, all.length)));
+    _destroyGems(coords, true);
+    return `${self.name} explodes ${coords.size} random gems!`;
+  };
+}
+
+// Lazy state ref for explodeRandom
+let _stateRef = { state: null };
+export function injectEquipState(stateObj) { _stateRef = { state: stateObj }; }
+
+// ── Enemy/Ally Targeting spell helpers ────────────────────────
+/** Player picks an enemy to damage */
+function dmgTarget(n) {
+  return (self, allies, enemies) => {
+    return {
+      targetType: 'enemy',
+      resolve(idx) {
+        const t = enemies[idx];
+        if (!t || t.life <= 0) return;
+        let d = n;
+        if (self.passives?.some(p => p.id === 'mage_surge')) d = Math.ceil(d * 1.2);
+        t.life = Math.max(0, t.life - d);
+      },
+    };
+  };
+}
+
+/** Player picks an ally to heal */
+function healTarget(n) {
+  return (self, allies) => {
+    return {
+      targetType: 'ally',
+      resolve(idx) {
+        const t = allies[idx];
+        if (!t || t.life <= 0) return;
+        let h = n;
+        if (self.passives?.some(p => p.id === 'priest_ascendant')) h = Math.ceil(h * 1.5);
+        t.life = Math.min(t.maxLife, t.life + h);
+      },
+    };
+  };
+}
+
+/** Damage a random enemy (no targeting) */
+function dmgRandom(n) {
+  return (self, allies, enemies) => {
+    const alive = enemies.filter(t => t.life > 0);
+    if (!alive.length) return '';
+    const t = alive[Math.floor(Math.random() * alive.length)];
+    let d = n;
+    if (self.passives?.some(p => p.id === 'mage_surge')) d = Math.ceil(d * 1.2);
+    t.life = Math.max(0, t.life - d);
+    return `${self.name} hits ${t.name} for ${d} damage!`;
+  };
+}
+
+/** Damage last (weakest) enemy */
+function dmgLast(n) {
+  return (self, allies, enemies) => {
+    const alive = enemies.filter(t => t.life > 0);
+    if (!alive.length) return '';
+    const t = alive[alive.length - 1];
+    let d = n;
+    if (self.passives?.some(p => p.id === 'mage_surge')) d = Math.ceil(d * 1.2);
+    t.life = Math.max(0, t.life - d);
+    return `${self.name} hits ${t.name} for ${d} damage!`;
+  };
+}
+
 // ── WEAPONS ───────────────────────────────────────────────────
 export const WEAPONS = [
   // ─── Warrior ────────────────────────────────────────────────
@@ -104,12 +241,30 @@ export const WEAPONS = [
       return `${self.name} unleashes Dragon Strike — ${alive[0].name} takes 41, rest take 15!`;
     }
   },
+  { id: 'siege_hammer',   name: 'Siege Hammer',     slot: 'weapon', category: 'hammer',
+    classes: ['warrior'], rarity: 'epic', manaColor: 'brown', manaCost: 14,
+    spell: 'Earthsplitter', spellDesc: 'Destroy an entire row of gems',
+    baseAttackBonus: 5, icon: '🔨', cast: consumeRow() },
+  { id: 'cleaving_axe',   name: 'Cleaving Axe',     slot: 'weapon', category: 'axe',
+    classes: ['warrior'], rarity: 'rare', manaColor: 'red', manaCost: 12,
+    spell: 'Column Rend', spellDesc: 'Destroy an entire column of gems',
+    baseAttackBonus: 4, icon: '🪓', cast: consumeColumn() },
 
   // ─── Priest ────────────────────────────────────────────────
   { id: 'wooden_mace',    name: 'Wooden Mace',      slot: 'weapon', category: 'mace',
     classes: ['priest'], rarity: 'common', manaColor: 'yellow', manaCost: 7,
-    spell: 'Heal', spellDesc: 'Heal most-wounded ally for 9 HP',
-    baseAttackBonus: 2, icon: '🏏', cast: heal(9) },
+    spell: 'Smite & Mend', spellDesc: 'Deal 6 dmg to front enemy, heal most-wounded ally 5',
+    baseAttackBonus: 2, icon: '🏏',
+    cast(self, allies, enemies) {
+      const t = enemies.find(t => t.life > 0);
+      if (t) t.life = Math.max(0, t.life - 6);
+      const wounded = allies.filter(a => a.life > 0 && a.life < a.maxLife)
+        .sort((a, b) => (a.life / a.maxLife) - (b.life / b.maxLife));
+      const healTarget = wounded[0] || self;
+      healTarget.life = Math.min(healTarget.maxLife, healTarget.life + 5);
+      return `${self.name} smites ${t?.name || 'enemy'} for 6 and heals ${healTarget.name} for 5!`;
+    }
+  },
   { id: 'holy_staff',     name: 'Holy Staff',       slot: 'weapon', category: 'staff',
     classes: ['priest'], rarity: 'common', manaColor: 'yellow', manaCost: 8,
     spell: 'Holy Light', spellDesc: 'Heal all allies for 5 HP',
@@ -151,6 +306,63 @@ export const WEAPONS = [
       return `${self.name} calls Divine Intervention — full heal + all allies +${Math.ceil(8 * bonus)} HP!`;
     }
   },
+  // ─── Priest Hybrid (Damage + Heal) ─────────────────────────
+  { id: 'smite_staff',     name: 'Smite Staff',      slot: 'weapon', category: 'staff',
+    classes: ['priest'], rarity: 'uncommon', manaColor: 'yellow', manaCost: 9,
+    spell: 'Smite', spellDesc: 'Deal 10 dmg to front enemy + heal most-wounded 8',
+    baseAttackBonus: 2, icon: '🪄',
+    cast(self, allies, enemies) {
+      let bonus = self.passives?.some(p => p.id === 'priest_ascendant') ? 1.5 : 1;
+      const t = enemies.find(t => t.life > 0);
+      if (t) t.life = Math.max(0, t.life - 10);
+      const wounded = [...allies].filter(a => a.life > 0)
+        .sort((a, b) => (a.life / a.maxLife) - (b.life / b.maxLife))[0];
+      const h = Math.ceil(8 * bonus);
+      if (wounded) wounded.life = Math.min(wounded.maxLife, wounded.life + h);
+      return `${self.name} smites ${t?.name || 'enemy'} for 10 and heals ${wounded?.name || 'ally'} for ${h}!`;
+    }
+  },
+  { id: 'mending_staff',   name: 'Mending Staff',    slot: 'weapon', category: 'staff',
+    classes: ['priest'], rarity: 'rare', manaColor: 'yellow', manaCost: 9,
+    spell: 'Focused Mend', spellDesc: 'Choose an ally — heal for 20 HP',
+    baseAttackBonus: 2, icon: '🪄', cast: healTarget(20) },
+  { id: 'judgment_mace',   name: 'Judgment Mace',    slot: 'weapon', category: 'mace',
+    classes: ['priest'], rarity: 'rare', manaColor: 'yellow', manaCost: 10,
+    spell: 'Holy Judgment', spellDesc: 'Deal 18 dmg to front enemy + heal self 6',
+    baseAttackBonus: 3, icon: '🏏',
+    cast(self, allies, enemies) {
+      const t = enemies.find(t => t.life > 0);
+      if (t) t.life = Math.max(0, t.life - 18);
+      let h = 6;
+      if (self.passives?.some(p => p.id === 'priest_ascendant')) h = Math.ceil(h * 1.5);
+      self.life = Math.min(self.maxLife, self.life + h);
+      return `${self.name} judges ${t?.name || 'enemy'} for 18 and heals self for ${h}!`;
+    }
+  },
+  { id: 'radiant_hammer',  name: 'Radiant Hammer',   slot: 'weapon', category: 'mace',
+    classes: ['priest'], rarity: 'epic', manaColor: 'yellow', manaCost: 12,
+    spell: 'Radiant Burst', spellDesc: 'Deal 8 dmg to all enemies + heal all allies 6',
+    baseAttackBonus: 4, icon: '🔨',
+    cast(self, allies, enemies) {
+      let bonus = self.passives?.some(p => p.id === 'priest_ascendant') ? 1.5 : 1;
+      enemies.filter(t => t.life > 0).forEach(t => { t.life = Math.max(0, t.life - 8); });
+      const h = Math.ceil(6 * bonus);
+      allies.filter(t => t.life > 0).forEach(t => { t.life = Math.min(t.maxLife, t.life + h); });
+      return `${self.name} radiates — 8 dmg to all enemies, all allies heal ${h}!`;
+    }
+  },
+  { id: 'staff_penance',   name: 'Staff of Penance', slot: 'weapon', category: 'staff',
+    classes: ['priest'], rarity: 'legendary', manaColor: 'yellow', manaCost: 14,
+    spell: 'Penance', spellDesc: 'Heal self 20 + deal 12 dmg to all enemies',
+    baseAttackBonus: 5, icon: '🪄',
+    cast(self, allies, enemies) {
+      let bonus = self.passives?.some(p => p.id === 'priest_ascendant') ? 1.5 : 1;
+      const h = Math.ceil(20 * bonus);
+      self.life = Math.min(self.maxLife, self.life + h);
+      enemies.filter(t => t.life > 0).forEach(t => { t.life = Math.max(0, t.life - 12); });
+      return `${self.name} channels Penance — heals ${h} and deals 12 to all enemies!`;
+    }
+  },
 
   // ─── Mage ───────────────────────────────────────────────────
   { id: 'apprentice_wand', name: 'Apprentice Wand',  slot: 'weapon', category: 'wand',
@@ -177,6 +389,22 @@ export const WEAPONS = [
     classes: ['mage'], rarity: 'legendary', manaColor: 'purple', manaCost: 14,
     spell: 'Cataclysm', spellDesc: 'Deal 19 damage to ALL enemies',
     baseAttackBonus: 4, icon: '🪄', cast: aoe(19) },
+  { id: 'chaos_wand',     name: 'Chaos Wand',       slot: 'weapon', category: 'wand',
+    classes: ['mage'], rarity: 'epic', manaColor: 'purple', manaCost: 11,
+    spell: 'Chaos Blast', spellDesc: 'Explode a 3×3 area of gems',
+    baseAttackBonus: 3, icon: '🪄', cast: explodeGem() },
+  { id: 'entropy_tome',   name: 'Entropy Tome',     slot: 'weapon', category: 'tome',
+    classes: ['mage'], rarity: 'rare', manaColor: 'blue', manaCost: 10,
+    spell: 'Entropy Wave', spellDesc: 'Destroy an entire row of gems',
+    baseAttackBonus: 2, icon: '📕', cast: consumeRow() },
+  { id: 'meteor_staff',   name: 'Meteor Staff',     slot: 'weapon', category: 'staff',
+    classes: ['mage'], rarity: 'legendary', manaColor: 'red', manaCost: 15,
+    spell: 'Meteor Shower', spellDesc: 'Explode 10 random gems',
+    baseAttackBonus: 4, icon: '🪄', cast: explodeRandom(10) },
+  { id: 'hex_wand',       name: 'Hex Wand',         slot: 'weapon', category: 'wand',
+    classes: ['mage'], rarity: 'rare', manaColor: 'purple', manaCost: 9,
+    spell: 'Hex Bolt', spellDesc: 'Choose an enemy — deal 18 damage',
+    baseAttackBonus: 2, icon: '🪄', cast: dmgTarget(18) },
 
   // ─── Thief ──────────────────────────────────────────────────
   { id: 'iron_dagger',    name: 'Iron Dagger',      slot: 'weapon', category: 'dagger',
@@ -203,6 +431,10 @@ export const WEAPONS = [
     classes: ['thief', 'ranger'], rarity: 'legendary', manaColor: 'green', manaCost: 13,
     spell: 'Rain of Arrows', spellDesc: 'Deal 15 damage to ALL enemies',
     baseAttackBonus: 8, icon: '🏹', cast: aoe(15) },
+  { id: 'assassin_blade', name: 'Assassin\'s Blade', slot: 'weapon', category: 'dagger',
+    classes: ['thief'], rarity: 'epic', manaColor: 'purple', manaCost: 10,
+    spell: 'Assassinate', spellDesc: 'Choose an enemy — deal 25 damage',
+    baseAttackBonus: 5, icon: '🗡️', cast: dmgTarget(25) },
 
   // ─── Paladin ────────────────────────────────────────────────
   { id: 'iron_mace',      name: 'Iron Mace',        slot: 'weapon', category: 'mace',
@@ -228,6 +460,27 @@ export const WEAPONS = [
     classes: ['paladin'], rarity: 'epic', manaColor: 'yellow', manaCost: 12,
     spell: 'Shield of Faith', spellDesc: 'Grant all allies +5 shield',
     baseAttackBonus: 3, icon: '🏏', cast: buffShield(5) },
+  { id: 'avenger_blade',  name: 'Avenger Blade',    slot: 'weapon', category: 'sword',
+    classes: ['paladin'], rarity: 'rare', manaColor: 'yellow', manaCost: 10,
+    spell: 'Righteous Strike', spellDesc: 'Choose an enemy — deal 20 damage',
+    baseAttackBonus: 4, icon: '⚔️', cast: dmgTarget(20) },
+  { id: 'dawn_hammer',    name: 'Dawn Hammer',      slot: 'weapon', category: 'hammer',
+    classes: ['paladin'], rarity: 'epic', manaColor: 'brown', manaCost: 13,
+    spell: 'Consecrate', spellDesc: 'Destroy an entire row of gems',
+    baseAttackBonus: 5, icon: '🔨', cast: consumeRow() },
+  { id: 'lightbringer',   name: 'Lightbringer',     slot: 'weapon', category: 'sword',
+    classes: ['paladin'], rarity: 'legendary', manaColor: 'yellow', manaCost: 14,
+    spell: 'Divine Wrath', spellDesc: 'Deal 12 AoE dmg + heal all allies 8 + 3 shield',
+    baseAttackBonus: 7, icon: '⚔️',
+    cast(self, allies, enemies) {
+      enemies.filter(t => t.life > 0).forEach(t => { t.life = Math.max(0, t.life - 12); });
+      allies.filter(t => t.life > 0).forEach(t => {
+        t.life = Math.min(t.maxLife, t.life + 8);
+        t.shield = (t.shield || 0) + 3;
+      });
+      return `${self.name} unleashes Divine Wrath — 12 AoE dmg, allies heal 8 + 3 shield!`;
+    }
+  },
 
   // ─── Ranger ─────────────────────────────────────────────────
   { id: 'rough_bow',      name: 'Rough Bow',        slot: 'weapon', category: 'bow',
@@ -246,6 +499,40 @@ export const WEAPONS = [
     classes: ['ranger'], rarity: 'epic', manaColor: 'green', manaCost: 11,
     spell: 'Barrage', spellDesc: 'Deal 26 damage to front enemy',
     baseAttackBonus: 6, icon: '🏹', cast: dmg(26) },
+  { id: 'verdant_bow',    name: 'Verdant Bow',      slot: 'weapon', category: 'bow',
+    classes: ['ranger'], rarity: 'rare', manaColor: 'green', manaCost: 10,
+    spell: 'Vine Column', spellDesc: 'Destroy an entire column of gems',
+    baseAttackBonus: 4, icon: '🏹', cast: consumeColumn() },
+  { id: 'sniper_bow',     name: 'Sniper Bow',       slot: 'weapon', category: 'bow',
+    classes: ['ranger'], rarity: 'epic', manaColor: 'green', manaCost: 10,
+    spell: 'Snipe', spellDesc: 'Choose an enemy — deal 24 damage',
+    baseAttackBonus: 5, icon: '🏹', cast: dmgTarget(24) },
+  { id: 'gale_bow',       name: 'Gale Bow',         slot: 'weapon', category: 'bow',
+    classes: ['ranger'], rarity: 'uncommon', manaColor: 'green', manaCost: 8,
+    spell: 'Wind Shot', spellDesc: 'Deal 10 dmg + heal self 5',
+    baseAttackBonus: 3, icon: '🏹', cast: selfHealDmg(10, 5) },
+  { id: 'world_tree_bow', name: 'World Tree Bow',   slot: 'weapon', category: 'bow',
+    classes: ['ranger'], rarity: 'legendary', manaColor: 'green', manaCost: 14,
+    spell: 'Nature\'s Fury', spellDesc: 'Deal 14 AoE dmg + explode a 3×3 area',
+    baseAttackBonus: 8, icon: '🏹',
+    cast(self, allies, enemies) {
+      enemies.filter(t => t.life > 0).forEach(t => { t.life = Math.max(0, t.life - 14); });
+      // Also return gem targeting for a 3×3 explosion
+      return {
+        targetType: 'gem',
+        resolve(r, c) {
+          const coords = new Set();
+          for (let dr = -1; dr <= 1; dr++)
+            for (let dc = -1; dc <= 1; dc++) {
+              const nr = r + dr, nc = c + dc;
+              if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE)
+                coords.add(`${nr},${nc}`);
+            }
+          _destroyGems(coords, true);
+        },
+      };
+    }
+  },
 ];
 
 // ── ARMOR ─────────────────────────────────────────────────────
@@ -328,6 +615,27 @@ export const ACCESSORIES = [
   { id: 'ember_stone',    name: 'Ember Stone',     slot: 'accessory',
     rarity: 'rare', stats: { attack: 1 }, bonusColor: 'red',
     passive: { id: 'ember', name: 'Ember Link', desc: 'Red gems also charge your skill' }, icon: '🔥' },
+  { id: 'demolition_charm', name: 'Demolition Charm', slot: 'accessory',
+    rarity: 'epic', stats: {},
+    passive: { id: 'demolition', name: 'Demolition', desc: '4+ gem matches trigger a random 3×3 explosion' }, icon: '💣' },
+  { id: 'empowered_lens',  name: 'Empowered Lens',  slot: 'accessory',
+    rarity: 'rare', stats: {},
+    passive: { id: 'empower_boost', name: 'Empower Boost', desc: 'Doubles empowered gem spawn chance' }, icon: '🔮' },
+  { id: 'verdant_band',   name: 'Verdant Band',    slot: 'accessory',
+    rarity: 'rare', stats: { maxLife: 2 }, bonusColor: 'green',
+    passive: { id: 'verdant', name: 'Verdant Link', desc: 'Green gems also charge your skill' }, icon: '💍' },
+  { id: 'frost_brooch',   name: 'Frost Brooch',    slot: 'accessory',
+    rarity: 'rare', stats: { armor: 1 }, bonusColor: 'blue',
+    passive: { id: 'frost_link', name: 'Frost Link', desc: 'Blue gems also charge your skill' }, icon: '❄️' },
+  { id: 'earthen_sigil',  name: 'Earthen Sigil',   slot: 'accessory',
+    rarity: 'uncommon', stats: { armor: 1 }, bonusColor: 'brown',
+    passive: { id: 'earth_link', name: 'Earth Link', desc: 'Brown gems also charge your skill' }, icon: '🪨' },
+  { id: 'soul_anchor',    name: 'Soul Anchor',     slot: 'accessory',
+    rarity: 'legendary', stats: { maxLife: 8 },
+    passive: { id: 'fortify', name: 'Fortify', desc: 'Start battle with +5 shield on all allies' }, icon: '⚓' },
+  { id: 'golden_horseshoe', name: 'Golden Horseshoe', slot: 'accessory',
+    rarity: 'epic', stats: { attack: 2 },
+    passive: { id: 'lucky_streak', name: 'Lucky Streak', desc: '4+ gem matches grant +3 bonus mana' }, icon: '🧲' },
 ];
 
 // ── Lookups ───────────────────────────────────────────────────

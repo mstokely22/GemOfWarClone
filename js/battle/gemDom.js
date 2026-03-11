@@ -3,7 +3,7 @@
 // ============================================================
 import { GEM_SIZE, GEM_GAP, CELL, ANIM_SWAP, ANIM_FALL, BOARD_SIZE } from '../data/constants.js';
 import { state } from '../state/gameState.js';
-import { GEM_SVG } from '../art/gems.js';
+import { GEM_SVG, empoweredOverlay } from '../art/gems.js';
 
 // DOM Gem Registry
 export const gemEls  = new Map();  // id → HTMLElement
@@ -12,9 +12,9 @@ export let   nextGemId = 0;
 export function resetGemIds() { nextGemId = 0; }
 export function bumpGemId()   { return nextGemId++; }
 
-export function createGemEl(id, type, r, c) {
+export function createGemEl(id, type, r, c, empowered = false) {
   const el = document.createElement('div');
-  el.className  = `gem ${type}`;
+  el.className  = `gem ${type}${empowered ? ' empowered' : ''}`;
   el.dataset.id = id;
   el.dataset.r  = r;
   el.dataset.c  = c;
@@ -28,6 +28,11 @@ export function createGemEl(id, type, r, c) {
     inner.innerHTML = svgFn();
   } else {
     inner.textContent = type;
+  }
+
+  // Empowered overlay — starburst ring
+  if (empowered) {
+    inner.innerHTML += empoweredOverlay();
   }
 
   el.appendChild(inner);
@@ -56,8 +61,8 @@ export function initBoardDOM() {
   gemEls.clear();
   for (let r = 0; r < BOARD_SIZE; r++) {
     for (let c = 0; c < BOARD_SIZE; c++) {
-      const { type, id } = state.board[r][c];
-      const el = createGemEl(id, type, r, c);
+      const { type, id, empowered } = state.board[r][c];
+      const el = createGemEl(id, type, r, c, empowered);
       boardEl.appendChild(el);
       gemEls.set(id, el);
     }

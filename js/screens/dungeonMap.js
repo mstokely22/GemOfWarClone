@@ -2,13 +2,16 @@
 //  GEMS OF COMBAT — Dungeon Map Screen
 //  Shows the procedural 5×4 grid of dungeon rooms.
 //  Cleared = dimmed. Available (adjacent to cleared) = glowing.
-//  Treasure rooms award loot instantly. Others go to TeamBuilder.
+//  Treasure rooms show a chest-reveal mini-screen.
 // ============================================================
 import { save, writeSave }          from '../state/save.js';
 import { DUNGEON_BY_ID,
          ROOM_TYPE_ICONS,
          ROOM_TYPE_LABELS }         from '../data/dungeons.js';
 import { getRoomBattleData }        from '../dungeon/generator.js';
+import { ALL_EQUIPMENT }            from '../data/equipment.js';
+import { MATERIAL_IDS, MATERIALS }  from '../data/materials.js';
+import { CHARACTERS }               from '../data/characters.js';
 import { showScreen }               from './navigation.js';
 import { renderHome }               from './home.js';
 import { renderDungeonSelect }      from './dungeonSelect.js';
@@ -91,13 +94,9 @@ function enterRoom(roomId) {
   if (!room || room.cleared) return;
 
   if (room.type === 'treasure') {
-    // No battle — instant gold reward
-    const def  = DUNGEON_BY_ID[run.dungeonId];
-    const gold = def.difficulty * 55 + Math.floor(Math.random() * def.difficulty * 20);
-    save.gold += gold;
     room.cleared = true;
     writeSave();
-    showTreasureFlash(gold);
+    openTreasureReveal(run.dungeonId);
     return;
   }
 
@@ -110,10 +109,133 @@ function enterRoom(roomId) {
   import('./teamBuilder.js').then(m => m.goToTeamBuilder());
 }
 
-function showTreasureFlash(gold) {
-  const flash = document.getElementById('dmap-flash');
-  if (!flash) { renderDungeonMap(); return; }
-  flash.textContent = `💎 Found ${gold} gold!`;
-  flash.classList.remove('hidden');
-  setTimeout(() => { flash.classList.add('hidden'); renderDungeonMap(); }, 1600);
+// ── Treasure Reveal ───────────────────────────────────────────
+
+function rollTreasureChests(difficulty) {
+  // 1-3 chests, higher difficulty increases chance of 3
+  const roll = Math.random();
+  const count = roll < 0.25 ? 1 : roll < (0.70 - difficulty * 0.04) ? 2 : 3;
+
+  const chests = [];
+  for (let i = 0; i < count; i++) {
+    chests.push(rollChestReward(difficulty, i === 0));
+  }
+  return chests;
+}
+
+function rollChestReward(difficulty, guaranteeGold) {
+  // First chest always has gold. Others roll from the reward table.
+  if (guaranteeGold) {
+    const gold = 30 * difficulty + Math.floor(Math.random() * 25 * difficulty);
+    return { type: 'gold', amount: gold, icon: '💰', label: `${gold} Gold` };
+  }
+
+  const roll = Math.random();
+
+  // 35% gold
+  if (roll < 0.35) {
+    const gold = 20 * difficulty + Math.floor(Math.random() * 20 * difficulty);
+    return { type: 'gold', amount: gold, icon: '💰', label: `${gold} Gold` };
+  }
+  // 20% treasure map
+  if (roll < 0.55) {
+    return { type: 'map', amount: 1, icon: '🗺️', label: 'Treasure Map' };
+  }
+  // 25% materials
+  if (roll < 0.80) {
+    const baseMats = ['metal_scrap', 'wood_scrap', 'leather_scrap'];
+    const rareMats = ['enchanted_metal', 'enchanted_wood', 'enchanted_leather'];
+    const useRare  = difficulty >= 3 && Math.random() < 0.3;
+    const pool     = useRare ? rareMats : baseMats;
+    const matId    = pool[Math.floor(Math.random() * pool.length)];
+    const qty      = 1 + Math.floor(Math.random() * difficulty);
+    const mat      = MATERIALS[matId];
+    return { type: 'material', matId, amount: qty, icon: mat.emoji, label: `${qty}× ${mat.name}` };
+  }
+  // 12% equipment
+  if (roll < 0.92) {
+    const item = ALL_EQUIPMENT[Math.floor(Math.random() * ALL_EQUIPMENT.length)];
+    return { type: 'equipment', itemId: item.id, amount: 1, icon: item.icon || '📦', label: item.name };
+  }
+  // 8% hero shards
+  const hero = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
+  return { type: 'shards', charId: hero.charId, amount: 1, icon: '💎', label: `${hero.name} Shard` };
+}
+
+function applyChestReward(reward) {
+  switch (reward.type) {
+    case 'gold':
+      save.gold += reward.amount;
+      break;
+    case 'map':
+      save.treasureMaps = (save.treasureMaps ?? 0) + reward.amount;
+      break;
+    case 'material':
+      if (!save.materials) save.materials = {};
+      save.materials[reward.matId] = (save.materials[reward.matId] ?? 0) + reward.amount;
+      break;
+    case 'equipment':
+      save.inventory.push(reward.itemId);
+      break;
+    case 'shards':
+      save.heroDraws = (save.heroDraws || 0) + reward.amount;
+      break;
+  }
+}
+
+function openTreasureReveal(dungeonId) {
+  const def      = DUNGEON_BY_ID[dungeonId];
+  const chests   = rollTreasureChests(def.difficulty);
+  let   revealed = 0;
+
+  const overlay = document.getElementById('treasure-reveal-overlay');
+  const box     = document.getElementById('tr-chests');
+  const summary = document.getElementById('tr-summary');
+  const doneBtn = document.getElementById('tr-done-btn');
+
+  overlay.classList.remove('hidden');
+  summary.classList.add('hidden');
+  doneBtn.classList.add('hidden');
+  box.innerHTML = '';
+
+  chests.forEach((reward, i) => {
+    const chest = document.createElement('div');
+    chest.className = 'tr-chest';
+    chest.innerHTML = `
+      <div class="tr-chest-closed">🎁</div>
+      <div class="tr-chest-open hidden">
+        <div class="tr-reward-icon">${reward.icon}</div>
+        <div class="tr-reward-label">${reward.label}</div>
+      </div>
+    `;
+    // Stagger entrance animation
+    chest.style.animationDelay = `${i * 0.15}s`;
+
+    chest.addEventListener('click', () => {
+      if (chest.classList.contains('tr-opened')) return;
+      chest.classList.add('tr-opened');
+      chest.querySelector('.tr-chest-closed').classList.add('hidden');
+      chest.querySelector('.tr-chest-open').classList.remove('hidden');
+
+      applyChestReward(reward);
+      revealed++;
+
+      if (revealed === chests.length) {
+        writeSave();
+        // Show summary + continue button
+        const lines = chests.map(r => `<div class="tr-summary-row">${r.icon} ${r.label}</div>`);
+        summary.innerHTML = `<div class="tr-summary-title">Loot Collected</div>${lines.join('')}`;
+        summary.classList.remove('hidden');
+        doneBtn.classList.remove('hidden');
+      }
+    }, { once: true });
+
+    box.appendChild(chest);
+  });
+
+  // Wire done button
+  doneBtn.onclick = () => {
+    overlay.classList.add('hidden');
+    renderDungeonMap();
+  };
 }

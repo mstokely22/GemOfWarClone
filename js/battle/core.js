@@ -5,7 +5,7 @@
 //  enemyCastSpells, enemyMove, castSpell
 //  + Passive effect hooks for class/equipment passives
 // ============================================================
-import { GEM_SYMBOLS, SKULL_BONUS_PER_GEM, ENEMY_DELAY } from '../data/constants.js';
+import { GEM_SYMBOLS, SKULL_BONUS_PER_GEM, ENEMY_DELAY, BOARD_SIZE } from '../data/constants.js';
 import { state } from '../state/gameState.js';
 import { addBroadcast }            from './animation.js';
 import { animateMatchPop, animateSkullAttack, startHintTimer, clearHint } from './animation.js';
@@ -190,6 +190,12 @@ export function applyBattleStartPassives() {
         if (ally.life > 0) ally.shield = (ally.shield ?? 0) + 4;
       }
     }
+    // Passive: fortify — +5 shield to all allies at battle start
+    if (has(troop, 'fortify')) {
+      for (const ally of state.playerTeam) {
+        if (ally.life > 0) ally.shield = (ally.shield ?? 0) + 5;
+      }
+    }
   }
 }
 
@@ -242,10 +248,68 @@ function showOverlay(title, msg) {
 export function processMatches(matched, isPlayer) {
   state.busy = true;
 
+  // ── Empowered gem explosions: expand matched set ──────────
+  // Any empowered gem in the matched set explodes its 3×3 neighbors.
+  const explosionCells = new Set();
+  for (const key of matched) {
+    const [r, c] = key.split(',').map(Number);
+    const gem = state.board[r][c];
+    if (gem?.empowered) {
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          const nr = r + dr, nc = c + dc;
+          if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+            const nk = `${nr},${nc}`;
+            if (!matched.has(nk) && state.board[nr][nc]) {
+              explosionCells.add(nk);
+            }
+          }
+        }
+      }
+    }
+  }
+  if (explosionCells.size) {
+    for (const k of explosionCells) matched.add(k);
+    addBroadcast('💥 EMPOWERED!', 'bc-extra');
+  }
+
   // LATCH: if this cascade level has a 4+ group, record it.
   // Resets to false at the start of each new turn (not per cascade).
   const maxGroup = largestMatchGroup(state.board, matched);
   if (maxGroup >= 4) state.grantExtra = true;
+
+  // ── Lucky Streak: +3 bonus mana on 4+ matches ──
+  if (maxGroup >= 4 && isPlayer) {
+    for (const t of state.playerTeam) {
+      if (t.life > 0 && has(t, 'lucky_streak')) {
+        t.mana = Math.min(t.manaCost, t.mana + 3);
+      }
+    }
+  }
+
+  // ── Demolition Charm: 4+ match triggers random 3×3 explosion ──
+  if (maxGroup >= 4 && isPlayer) {
+    const team = state.playerTeam;
+    const hasDemolition = team.some(t => t.life > 0 && t.passives?.some(p => p.id === 'demolition'));
+    if (hasDemolition) {
+      // Pick a random non-matched gem to explode
+      const candidates = [];
+      for (let r = 0; r < BOARD_SIZE; r++)
+        for (let c = 0; c < BOARD_SIZE; c++)
+          if (state.board[r][c] && !matched.has(`${r},${c}`))
+            candidates.push([r, c]);
+      if (candidates.length) {
+        const [cr, cc] = candidates[Math.floor(Math.random() * candidates.length)];
+        for (let dr = -1; dr <= 1; dr++)
+          for (let dc = -1; dc <= 1; dc++) {
+            const nr = cr + dr, nc = cc + dc;
+            if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE)
+              matched.add(`${nr},${nc}`);
+          }
+        addBroadcast('💣 DEMOLITION!', 'bc-extra');
+      }
+    }
+  }
 
   animateMatchPop(matched, () => {
     const { skullHit } = processMana(matched, isPlayer);
@@ -290,10 +354,17 @@ export function processMatches(matched, isPlayer) {
         renderTeams();
         renderTurnIndicator();
 
-        if (isPlayer && state.grantExtra) {
-          // Player keeps the turn — busy already cleared above
-          if (checkDeadlock()) addBroadcast('🔄 RESHUFFLED', 'bc-system');
-          startHintTimer();
+        if (state.grantExtra) {
+          if (isPlayer) {
+            // Player keeps the turn
+            state.busy = false;
+            if (checkDeadlock()) addBroadcast('🔄 RESHUFFLED', 'bc-system');
+            startHintTimer();
+          } else {
+            // Enemy keeps the turn
+            state.busy = false;
+            setTimeout(enemyCastSpells, ENEMY_DELAY * 0.5);
+          }
           return;
         }
 
@@ -380,11 +451,41 @@ export function enemyMove() {
 // ── Spell Casting ─────────────────────────────────────────────
 export function castSpell(i) {
   if (!state.playerTurn || state.busy || state.gameOver) return;
+  // If already in targeting mode, ignore additional spell clicks
+  if (state.targeting) return;
   const troop = state.playerTeam[i];
   if (troop.life <= 0 || troop.mana < troop.manaCost) return;
+
+  // Check if spell needs board/enemy targeting.
+  // Spell can set `troop._spellTargeting = { type, resolve }` to request targeting mode.
   troop.mana = 0;
-  const msg = troop.cast(troop, state.playerTeam, state.enemyTeam);
-  if (msg) addBroadcast(`✨ ${troop.spell}!`, 'bc-spell');
+  const result = troop.cast(troop, state.playerTeam, state.enemyTeam);
+
+  // If cast returned a targeting request, enter targeting mode
+  if (result && typeof result === 'object' && result.targetType) {
+    const isBoardTarget = ['row', 'column', 'gem'].includes(result.targetType);
+    state.targeting = {
+      type: result.targetType,
+      casterIndex: i,
+      callback: (...args) => {
+        result.resolve(...args);
+        // Board-targeting spells call destroyGems which manages its own turn flow.
+        // Enemy/ally targeting resolves instantly and needs manual finalization.
+        if (!isBoardTarget) {
+          checkDeaths();
+          if (checkGameOver()) return;
+          renderTeams();
+          renderTurnIndicator();
+        }
+      },
+    };
+    addBroadcast(`🎯 ${troop.spell}!`, 'bc-spell');
+    renderTeams();
+    renderTurnIndicator();
+    return;
+  }
+
+  if (result) addBroadcast(`✨ ${troop.spell}!`, 'bc-spell');
   checkDeaths();
   if (checkGameOver()) return;
   renderTeams();
@@ -400,4 +501,96 @@ let _boardRef   = { reshuffleBoard: () => {} };
 export function injectCoreDeps(gemDom, board) {
   _gemDomRef = gemDom;
   _boardRef  = board;
+}
+
+// ── Destroy Gems API (for spell effects) ──────────────────────
+// Destroys an arbitrary set of gem coordinates, processes mana/skulls,
+// runs gravity + cascade, then calls onComplete.
+// Used by row/column/explosion spells.
+export function destroyGems(coordSet, isPlayer, onComplete) {
+  state.busy = true;
+
+  // Check for empowered explosions in the destruction set
+  const explosionCells = new Set();
+  for (const key of coordSet) {
+    const [r, c] = key.split(',').map(Number);
+    const gem = state.board[r][c];
+    if (gem?.empowered) {
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          const nr = r + dr, nc = c + dc;
+          if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+            const nk = `${nr},${nc}`;
+            if (!coordSet.has(nk) && state.board[nr][nc]) {
+              explosionCells.add(nk);
+            }
+          }
+        }
+      }
+    }
+  }
+  if (explosionCells.size) {
+    for (const k of explosionCells) coordSet.add(k);
+    addBroadcast('💥 EMPOWERED!', 'bc-extra');
+  }
+
+  animateMatchPop(coordSet, () => {
+    const { skullHit } = processMana(coordSet, isPlayer);
+
+    const afterAttack = () => {
+      for (const key of coordSet) {
+        const [r, c] = key.split(',').map(Number);
+        const gem    = state.board[r][c];
+        if (!gem) continue;
+        const { gemEls } = _gemDomRef;
+        const el = gemEls.get(gem.id);
+        if (el) el.remove();
+        gemEls.delete(gem.id);
+        state.board[r][c] = null;
+      }
+
+      checkDeaths();
+      if (checkGameOver()) return;
+
+      resolveGravity(() => {
+        const next = findAllMatches(state.board);
+        if (next.size > 0) {
+          processMatches(next, isPlayer);
+          return;
+        }
+        // No cascades — end spell turn
+        if (isPlayer) applyEndOfTurnPassives();
+        renderTeams();
+        renderTurnIndicator();
+
+        if (isPlayer) {
+          state.playerTurn = false;
+          renderTurnIndicator();
+          state.busy = false;
+          setTimeout(enemyCastSpells, ENEMY_DELAY * 0.5);
+        } else {
+          // Check if enemy earned an extra turn from cascades
+          if (state.grantExtra) {
+            addBroadcast('⭐ EXTRA TURN!', 'bc-extra');
+            state.busy = false;
+            setTimeout(enemyCastSpells, ENEMY_DELAY * 0.5);
+          } else {
+            state.playerTurn = true;
+            state.busy = false;
+            renderTeams();
+            renderTurnIndicator();
+            if (checkDeadlock()) addBroadcast('🔄 RESHUFFLED', 'bc-system');
+            startHintTimer();
+          }
+        }
+        if (onComplete) onComplete();
+      });
+    };
+
+    if (skullHit) {
+      animateSkullAttack(isPlayer, skullHit.atkIdx, skullHit.defIdx, skullHit.dmg, afterAttack);
+    } else {
+      afterAttack();
+    }
+  });
 }

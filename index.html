@@ -98,6 +98,19 @@
 </div>
 
 <!-- ═══════════════════════════════════════
+     TREASURE REVEAL OVERLAY (dungeon treasure rooms)
+══════════════════════════════════════════ -->
+<div id="treasure-reveal-overlay" class="hidden">
+  <div id="treasure-reveal-box">
+    <div id="tr-title">💎 Treasure Room!</div>
+    <div id="tr-subtitle">Tap each chest to reveal your loot</div>
+    <div id="tr-chests"></div>
+    <div id="tr-summary" class="hidden"></div>
+    <button id="tr-done-btn" class="hidden">✔ Collect &amp; Continue</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
      TEAM BUILDER SCREEN
 ══════════════════════════════════════════ -->
 <div id="screen-team" class="screen hidden">
@@ -308,7 +321,10 @@
         🪙→🥈→🥇→💰→🎁→👑<br>
         Match 4+ for an extra turn. You start with <strong>8 turns</strong>.
       </p>
-      <button id="th-use-map-btn" class="th-start-btn" disabled>🗺️ Use a Map</button>
+      <div class="th-btn-row">
+        <button id="th-use-map-btn" class="th-start-btn" disabled>🗺️ Use a Map</button>
+        <button id="th-buy-map-btn" class="th-buy-btn">💰 Buy Map (500g)</button>
+      </div>
     </div>
   </div>
 

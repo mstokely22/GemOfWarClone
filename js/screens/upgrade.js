@@ -119,8 +119,8 @@ function renderInventoryGrid() {
       nextStats = equipStatLine(item, upgLevel + 1);
     }
 
-    // Upgrade cost info
-    const canUpgrade = upgLevel < 10;
+    // Accessories cannot be upgraded
+    const canUpgrade = upgLevel < 10 && item.slot !== 'accessory';
     let costHtml = '';
     if (canUpgrade) {
       const cost = upgradeCost(item, upgLevel);
@@ -143,10 +143,11 @@ function renderInventoryGrid() {
         </div>
       </div>
       ${item.spellDesc ? `<div class="upg-spell-desc">${item.spellDesc}</div>` : ''}
+      ${item.slot === 'accessory' && item.passive ? `<div class="upg-spell-desc">✦ ${item.passive.name}: ${item.passive.desc}</div>` : ''}
       <div class="upg-stats-row">
         <div class="upg-stats-current">
-          <div class="upg-stats-label">Current</div>
-          <div class="upg-stats-vals">${curStats}</div>
+          <div class="upg-stats-label">${item.slot === 'accessory' ? 'Stats' : 'Current'}</div>
+          <div class="upg-stats-vals">${curStats || '<span style="color:#888">—</span>'}</div>
         </div>
         ${canUpgrade ? `
           <div class="upg-stats-arrow">→</div>
@@ -154,7 +155,7 @@ function renderInventoryGrid() {
             <div class="upg-stats-label">+${upgLevel + 1}</div>
             <div class="upg-stats-vals">${nextStats}</div>
           </div>
-        ` : '<div class="upg-max">MAX +10</div>'}
+        ` : (item.slot === 'accessory' ? '' : '<div class="upg-max">MAX +10</div>')}
       </div>
       <div class="upg-actions">
         ${canUpgrade ? `

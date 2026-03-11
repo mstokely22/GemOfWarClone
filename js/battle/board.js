@@ -1,10 +1,22 @@
 // ============================================================
 //  GEMS OF COMBAT — Board Generation + Gravity + Reshuffle
 // ============================================================
-import { GEM_TYPES, BOARD_SIZE, ANIM_FALL } from '../data/constants.js';
+import { GEM_TYPES, BOARD_SIZE, ANIM_FALL, EMPOWERED_SPAWN_CHANCE } from '../data/constants.js';
 import { state }                             from '../state/gameState.js';
 import { gemEls, createGemEl, setGemPos, initBoardDOM, bumpGemId, resetGemIds } from './gemDom.js';
 import { findAllMatches, findValidMoves }    from './matching.js';
+
+/** Roll whether a newly spawned gem is empowered. */
+export function rollEmpowered() {
+  let chance = EMPOWERED_SPAWN_CHANCE;
+  // Passive bonuses added by gear/accessories increase the chance
+  if (state.playerTeam) {
+    for (const t of state.playerTeam) {
+      if (t.life > 0 && t.passives?.some(p => p.id === 'empower_boost')) chance += 0.03;
+    }
+  }
+  return Math.random() < chance;
+}
 
 export function randomGem() {
   return GEM_TYPES[Math.floor(Math.random() * GEM_TYPES.length)];
@@ -22,7 +34,7 @@ export function generateBoard() {
       let choices = GEM_TYPES.filter(g => !forbidden.has(g));
       if (!choices.length) choices = GEM_TYPES;
       const type = choices[Math.floor(Math.random() * choices.length)];
-      board[r][c] = { type, id: bumpGemId() };
+      board[r][c] = { type, id: bumpGemId(), empowered: rollEmpowered() };
     }
   }
   return board;
@@ -51,8 +63,8 @@ export function resolveGravity(cb) {
     for (let r = writeRow; r >= 0; r--) {
       const id   = bumpGemId();
       const type = randomGem();
-      state.board[r][c] = { type, id };
-      newGems.push({ id, type, toRow: r, col: c, spawnIdx: spawnIdx++ });
+      state.board[r][c] = { type, id, empowered: rollEmpowered() };
+      newGems.push({ id, type, empowered: state.board[r][c].empowered, toRow: r, col: c, spawnIdx: spawnIdx++ });
     }
   }
 
@@ -63,8 +75,8 @@ export function resolveGravity(cb) {
   }
 
   // Spawn new gems above visible area and animate in
-  for (const { id, type, toRow, col, spawnIdx } of newGems) {
-    const el = createGemEl(id, type, -(spawnIdx + 1), col);
+  for (const { id, type, empowered, toRow, col, spawnIdx } of newGems) {
+    const el = createGemEl(id, type, -(spawnIdx + 1), col, empowered);
     boardEl.appendChild(el);
     gemEls.set(id, el);
     el.getBoundingClientRect(); // force layout so off-screen start registers

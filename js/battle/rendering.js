@@ -21,14 +21,22 @@ export function renderPanel(containerId, team, isPlayer) {
   if (!el) return;
   el.innerHTML = '';
 
+  // Check if we're in targeting mode that affects troop cards
+  const tgt = state.targeting;
+  const isEnemyTarget = tgt && tgt.type === 'enemy' && !isPlayer;
+  const isAllyTarget  = tgt && tgt.type === 'ally'  && isPlayer;
+
   team.forEach((troop, i) => {
     const canCast = isPlayer && state.playerTurn && !state.busy && !state.gameOver
+                  && !state.targeting
                   && troop.life > 0 && troop.mana >= troop.manaCost;
+    const isTargetable = (isEnemyTarget || isAllyTarget) && troop.life > 0;
 
     const card = document.createElement('div');
     card.className = 'troop-card' +
       (troop.life <= 0 ? ' dead' : '') +
-      (canCast         ? ' can-cast' : '');
+      (canCast         ? ' can-cast' : '') +
+      (isTargetable    ? ' targetable' : '');
 
     const hpPct     = Math.max(0, (troop.life / troop.maxLife) * 100).toFixed(1);
     const manaPct   = Math.max(0, (troop.mana  / troop.manaCost) * 100).toFixed(1);
@@ -76,9 +84,18 @@ export function renderPanel(containerId, team, isPlayer) {
         </div>
       </div>
       ${canCast ? '<div class="cast-ready-badge">⚡ READY</div>' : ''}
+      ${isTargetable ? '<div class="cast-ready-badge target-badge">🎯 TARGET</div>' : ''}
     `;
 
-    if (canCast) card.addEventListener('click', () => _castSpellFn(i));
+    if (isTargetable) {
+      card.addEventListener('click', () => {
+        const cb = state.targeting?.callback;
+        state.targeting = null;
+        if (cb) cb(i);
+      });
+    } else if (canCast) {
+      card.addEventListener('click', () => _castSpellFn(i));
+    }
     el.appendChild(card);
   });
 }

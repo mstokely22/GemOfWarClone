@@ -7,14 +7,19 @@ import { generateBoard }     from './board.js';
 import { gemEls, initBoardDOM, resetGemIds } from './gemDom.js';
 import { renderTeams, renderTurnIndicator, injectCastSpell } from './rendering.js';
 import { startHintTimer, resetBroadcast } from './animation.js';
-import { castSpell, injectCoreDeps, applyBattleStartPassives } from './core.js';
+import { castSpell, injectCoreDeps, applyBattleStartPassives, destroyGems } from './core.js';
 import * as gemDomModule    from './gemDom.js';
 import * as boardModule     from './board.js';
-import { onPointerDown, onPointerMove, onPointerUp, onPointerCancel } from './input.js';
+import { onPointerDown, onPointerMove, onPointerUp, onPointerCancel, injectInputDeps } from './input.js';
+import * as animModule       from './animation.js';
+import { injectDestroyGems, injectEquipState } from '../data/equipment.js';
 
 // Wire injection dependencies on load
 injectCastSpell(castSpell);
 injectCoreDeps(gemDomModule, boardModule);
+injectInputDeps(animModule);
+injectDestroyGems(destroyGems);
+injectEquipState(state);
 
 let _boardListenersAdded = false;
 

@@ -20,6 +20,9 @@ export const state = {
   busy:        false,
   gameOver:    false,
   grantExtra:  false,
+  // Targeting mode — set by spells that need board/enemy/ally selection
+  // { type: 'gem'|'row'|'column'|'enemy'|'ally', callback: fn, casterIndex: n }
+  targeting:   null,
 };
 
 // ── baseTroop — used for enemies (flat template) ──────────────

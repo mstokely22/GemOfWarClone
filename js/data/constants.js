@@ -13,6 +13,10 @@ export const CELL        = GEM_SIZE + GEM_GAP;  // 66px per grid cell
 export const SKULL_BONUS_PER_GEM = 2;
 export const SWIPE_THRESHOLD     = 15;  // px minimum swipe distance
 
+// Empowered gems — rare gems that explode (3×3) when matched.
+// Base chance applied per new gem spawned. Passives/gear can add to this.
+export const EMPOWERED_SPAWN_CHANCE = 0.03;  // 3% base chance
+
 export const ANIM_SWAP   = 180;  // ms — gem swap slide
 export const ANIM_MATCH  = 320;  // ms — gem pop
 export const ANIM_FALL   = 280;  // ms — gem fall/spawn

@@ -361,3 +361,22 @@ export const GEM_SVG = {
   brown:  gemBrown,
   skull:  gemSkull,
 };
+
+/** Empowered gem overlay — a starburst ring drawn on top of the base gem. */
+export function empoweredOverlay() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56" style="position:absolute;top:0;left:0;pointer-events:none">
+  <defs>
+    <radialGradient id="emp_glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#ffd700" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#ffd700" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="emp_blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+  </defs>
+  <circle cx="28" cy="28" r="24" fill="url(#emp_glow)" filter="url(#emp_blur)"/>
+  <!-- 8-point star frame -->
+  <polygon points="28,4 31,20 44,8 34,22 52,22 36,28 52,34 34,34 44,48 31,36 28,52 25,36 12,48 22,34 4,34 20,28 4,22 22,22 12,8 25,20"
+    fill="none" stroke="#ffd700" stroke-width="0.8" opacity="0.6"/>
+</svg>`;
+}

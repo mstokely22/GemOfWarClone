@@ -66,6 +66,20 @@ export function renderTreasureHunt() {
     useBtn.onclick = startTreasureHunt;
   }
 
+  const buyBtn = document.getElementById('th-buy-map-btn');
+  if (buyBtn) {
+    const cost = 500;
+    buyBtn.disabled = save.gold < cost;
+    buyBtn.textContent = `💰 Buy Map (${cost}g)`;
+    buyBtn.onclick = () => {
+      if (save.gold < cost) return;
+      save.gold -= cost;
+      save.treasureMaps = (save.treasureMaps || 0) + 1;
+      writeSave();
+      renderTreasureHunt();
+    };
+  }
+
   showScreen('treasure-hunt');
 }
 

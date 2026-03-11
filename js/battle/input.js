@@ -1,12 +1,13 @@
 // ============================================================
-//  GEMS OF COMBAT — Swipe / Pointer Input
+//  GEMS OF COMBAT — Swipe / Pointer Input + Targeting Mode
 // ============================================================
-import { SWIPE_THRESHOLD } from '../data/constants.js';
+import { SWIPE_THRESHOLD, BOARD_SIZE } from '../data/constants.js';
 import { state }           from '../state/gameState.js';
 import { clearHint }       from './animation.js';
 import { animateSwap }     from './animation.js';
 import { findAllMatches }  from './matching.js';
 import { processMatches }  from './core.js';
+import { renderTeams, renderTurnIndicator } from './rendering.js';
 
 let dragState = null;
 
@@ -16,6 +17,19 @@ export function onPointerDown(e) {
   if (!gem) return;
   e.preventDefault();
   clearHint();
+
+  // ── Targeting mode: gem/row/column selection ──────────────
+  if (state.targeting) {
+    // Only process gem clicks for board-targeting modes
+    if (!['row', 'column', 'gem'].includes(state.targeting.type)) return;
+    const r = +gem.dataset.r, c = +gem.dataset.c;
+    const tgt = state.targeting;
+    state.targeting = null;
+    clearTargetHighlights();
+    tgt.callback(r, c);
+    return;
+  }
+
   dragState = {
     r:      +gem.dataset.r,
     c:      +gem.dataset.c,
@@ -28,8 +42,16 @@ export function onPointerDown(e) {
 }
 
 export function onPointerMove(e) {
-  if (!dragState) return;
-  e.preventDefault(); // prevent scroll on touch devices
+  if (!dragState && !state.targeting) return;
+  e.preventDefault();
+
+  // When in targeting mode, highlight row/column on hover
+  if (state.targeting && !dragState) {
+    const gem = e.target.closest('.gem');
+    if (!gem) return;
+    const r = +gem.dataset.r, c = +gem.dataset.c;
+    highlightTarget(state.targeting.type, r, c);
+  }
 }
 
 export function onPointerUp(e) {
@@ -59,6 +81,53 @@ export function onPointerCancel() {
   if (inner) inner.style.filter = '';
   dragState = null;
 }
+
+// ── Targeting mode helpers ────────────────────────────────────
+
+/** Highlight gems based on targeting type + hovered position. */
+function highlightTarget(type, r, c) {
+  clearTargetHighlights();
+  const board = document.getElementById('game-board');
+  if (!board) return;
+
+  if (type === 'row') {
+    board.querySelectorAll('.gem').forEach(el => {
+      if (+el.dataset.r === r) el.classList.add('target-highlight');
+    });
+  } else if (type === 'column') {
+    board.querySelectorAll('.gem').forEach(el => {
+      if (+el.dataset.c === c) el.classList.add('target-highlight');
+    });
+  } else if (type === 'gem') {
+    // Highlight 3×3 around the gem
+    board.querySelectorAll('.gem').forEach(el => {
+      const gr = +el.dataset.r, gc = +el.dataset.c;
+      if (Math.abs(gr - r) <= 1 && Math.abs(gc - c) <= 1) {
+        el.classList.add('target-highlight');
+      }
+    });
+  }
+}
+
+/** Remove all targeting highlights from the board. */
+export function clearTargetHighlights() {
+  document.querySelectorAll('.gem.target-highlight').forEach(el => {
+    el.classList.remove('target-highlight');
+  });
+}
+
+/** Enter targeting mode — called by spell cast functions. */
+export function enterTargetingMode(type, casterIndex, callback) {
+  state.targeting = { type, casterIndex, callback };
+  // Show a broadcast hint
+  const labels = { row: 'Select a row!', column: 'Select a column!', gem: 'Select a gem!' };
+  const { addBroadcast } = _animRef;
+  if (addBroadcast) addBroadcast(`🎯 ${labels[type] || 'Select target!'}`, 'bc-system');
+}
+
+// Lazy reference to avoid circular import
+let _animRef = {};
+export function injectInputDeps(anim) { _animRef = anim; }
 
 export function attemptSwap(r1, c1, r2, c2) {
   state.busy = true;

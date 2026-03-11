@@ -41,7 +41,7 @@ export function generateDungeon(dungeonId) {
     const valid = opts.filter(o => !grid.has(`${o.nx},${o.ny}`)
       && o.nx >= 0 && o.nx < COLS && o.ny >= 0 && o.ny < ROWS);
 
-    if (!valid.length) break; // trapped — generation continues with branches
+    if (!valid.length) break; // trapped — will ensure boss after loop
 
     const total   = valid.reduce((s, o) => s + o.w, 0);
     let   r       = Math.random() * total;
@@ -57,6 +57,29 @@ export function generateDungeon(dungeonId) {
                    : pathLen % 3 === 0 ? 'elite'
                    : 'combat';
     placeRoom(cx, cy, type);
+  }
+
+  // Guarantee a boss room exists — if the random walk got trapped before
+  // reaching (bossX, 0), force-place the boss on an available top-row cell.
+  const hasBoss = rooms.some(rm => rm.type === 'boss');
+  if (!hasBoss) {
+    // Prefer the intended bossX, then try other interior top-row cells
+    const topCandidates = [bossX, 1, 2, 3].filter((v, i, a) => a.indexOf(v) === i);
+    let placed = false;
+    for (const tx of topCandidates) {
+      if (!grid.has(`${tx},0`)) {
+        placeRoom(tx, 0, 'boss');
+        placed = true;
+        break;
+      }
+    }
+    // If all top-row interior cells are taken, convert the last non-start room to boss
+    if (!placed) {
+      const convertible = rooms.filter(rm => rm.type !== 'start' && rm.type !== 'boss');
+      if (convertible.length) {
+        convertible[convertible.length - 1].type = 'boss';
+      }
+    }
   }
 
   // Add 2–3 branch rooms off the main path

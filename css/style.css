@@ -173,6 +173,45 @@ html, body {
 .gem.brown  { background: radial-gradient(circle at 35% 35%, #c8956c, #5d2a0e); border-color: #a0522d; }
 .gem.skull  { background: radial-gradient(circle at 35% 35%, #bdc3c7, #2c3e50); border-color: #7f8c8d; }
 
+/* ── Empowered Gems — pulsing glow + star badge ── */
+.gem.empowered {
+  z-index: 2;
+}
+.gem.empowered::before {
+  content: '✦';
+  position: absolute;
+  top: -2px; right: -2px;
+  font-size: .6rem;
+  color: #fff;
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  border-radius: 50%;
+  width: 14px; height: 14px;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 3;
+  box-shadow: 0 0 6px rgba(255,215,0,.7);
+  pointer-events: none;
+}
+.gem.empowered .gem-inner {
+  animation: empoweredPulse 1.6s ease-in-out infinite;
+  box-shadow: inset 0 0 8px rgba(255,215,0,.3);
+}
+@keyframes empoweredPulse {
+  0%, 100% { filter: brightness(1.05); box-shadow: 0 0 6px rgba(255,215,0,.25); }
+  50%      { filter: brightness(1.3);  box-shadow: 0 0 16px rgba(255,215,0,.6), 0 0 30px rgba(255,140,0,.3); }
+}
+
+/* ── Targeting mode highlights ── */
+.gem.target-highlight {
+  z-index: 5;
+}
+.gem.target-highlight .gem-inner {
+  filter: brightness(1.4) !important;
+  box-shadow: 0 0 12px rgba(0,200,255,.6), 0 0 24px rgba(0,200,255,.3);
+  outline: 2px solid rgba(0,200,255,.7);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
 /* Pop animation on .gem-inner so position transform is not disturbed */
 .gem-inner.popping {
   animation: gemPop 0.32s ease forwards;
@@ -244,6 +283,22 @@ html, body {
 }
 .troop-card.can-cast:hover {
   box-shadow: 0 0 18px rgba(255,215,0,.9), inset 0 0 14px rgba(255,215,0,.14);
+}
+.troop-card.targetable {
+  border-color: #00e5ff;
+  box-shadow: 0 0 12px rgba(0,229,255,.6), inset 0 0 8px rgba(0,229,255,.1);
+  cursor: pointer;
+  animation: targetPulse 0.8s ease-in-out infinite alternate;
+}
+.troop-card.targetable:hover {
+  box-shadow: 0 0 22px rgba(0,229,255,.9), inset 0 0 14px rgba(0,229,255,.15);
+}
+@keyframes targetPulse {
+  from { box-shadow: 0 0 8px rgba(0,229,255,.4); }
+  to   { box-shadow: 0 0 18px rgba(0,229,255,.8); }
+}
+.target-badge {
+  background: linear-gradient(135deg, #00e5ff, #00b0ff) !important;
 }
 
 /* Portrait fills the full card as a faded background */
