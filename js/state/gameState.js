@@ -20,6 +20,7 @@ export const state = {
   busy:        false,
   gameOver:    false,
   grantExtra:  false,
+  spellActive: false,
   // Targeting mode — set by spells that need board/enemy/ally selection
   // { type: 'gem'|'row'|'column'|'enemy'|'ally', callback: fn, casterIndex: n }
   targeting:   null,
@@ -180,4 +181,5 @@ export function initState(playerTeamData, enemyTeamData) {
   state.busy        = false;
   state.gameOver    = false;
   state.grantExtra  = false;
+  state.spellActive = false;
 }

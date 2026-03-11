@@ -362,7 +362,6 @@ export const GEM_SVG = {
   skull:  gemSkull,
 };
 
-/** Empowered gem overlay — a starburst ring drawn on top of the base gem. */
 export function empoweredOverlay() {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56" style="position:absolute;top:0;left:0;pointer-events:none">
   <defs>

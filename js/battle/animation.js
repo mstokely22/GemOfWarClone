@@ -1,7 +1,7 @@
 // ============================================================
 //  GEMS OF COMBAT — Animations: swap, pop, attacks, broadcast, hints
 // ============================================================
-import { ANIM_SWAP, ANIM_MATCH, ANIM_ATTACK } from '../data/constants.js';
+import { ANIM_SWAP, ANIM_MATCH, ANIM_ATTACK, CELL } from '../data/constants.js';
 import { state }  from '../state/gameState.js';
 import { gemEls, setGemPos } from './gemDom.js';
 import { findValidMoves }    from './matching.js';
@@ -87,6 +87,7 @@ export function animateSwap(r1, c1, r2, c2, cb) {
 
 // ── Animated Match Pop ────────────────────────────────────────
 export function animateMatchPop(matched, cb) {
+  const boardEl = document.getElementById('game-board');
   for (const key of matched) {
     const [r, c] = key.split(',').map(Number);
     const gem    = state.board[r][c];
@@ -96,6 +97,24 @@ export function animateMatchPop(matched, cb) {
     el.style.transition = 'none'; // freeze position during pop
     const inner = el.querySelector('.gem-inner');
     if (inner) inner.classList.add('popping');
+
+    // Spawn particle explosion overlay
+    if (boardEl) {
+      const expl = document.createElement('div');
+      expl.className = 'gem-explosion';
+      expl.style.transform = `translate(${c * CELL}px, ${r * CELL}px)`;
+      // 8 sparks + 1 expanding ring
+      for (let i = 0; i < 8; i++) {
+        const s = document.createElement('div');
+        s.className = 'spark';
+        expl.appendChild(s);
+      }
+      const ring = document.createElement('div');
+      ring.className = 'ring';
+      expl.appendChild(ring);
+      boardEl.appendChild(expl);
+      setTimeout(() => expl.remove(), 500);
+    }
   }
   setTimeout(cb, ANIM_MATCH);
 }

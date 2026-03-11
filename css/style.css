@@ -109,8 +109,8 @@ html, body {
 /* ── Game Board ── */
 #game-board {
   position: relative;
-  width:  556px;  /* 8 * (66 + 4) - 4 = 556 */
-  height: 556px;
+  width:  560px;  /* 8 * (66 + 4) - 4 + 2*2 border = 560 */
+  height: 560px;
   background: #110826;
   border: 2px solid var(--border);
   border-radius: 10px;
@@ -212,15 +212,56 @@ html, body {
   border-radius: 8px;
 }
 
-/* Pop animation on .gem-inner so position transform is not disturbed */
+/* Pop animation on .gem-inner — bright flash + scale-out */
 .gem-inner.popping {
-  animation: gemPop 0.32s ease forwards;
+  animation: gemPop 0.4s ease-out forwards;
 }
-
 @keyframes gemPop {
   0%   { transform: scale(1);    opacity: 1; filter: brightness(1); }
-  40%  { transform: scale(1.35); opacity: .9; filter: brightness(2.2); }
-  100% { transform: scale(0);    opacity: 0; }
+  25%  { transform: scale(1.25); opacity: 1; filter: brightness(2.5) saturate(1.8); }
+  50%  { transform: scale(1.1);  opacity: .8; filter: brightness(2.0); }
+  100% { transform: scale(0);    opacity: 0; filter: brightness(3); }
+}
+
+/* Particle explosion overlay — spawned by JS on match pop */
+.gem-explosion {
+  position: absolute;
+  width: var(--gem-size);
+  height: var(--gem-size);
+  pointer-events: none;
+  z-index: 10;
+}
+.gem-explosion .spark {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  animation: sparkFly 0.45s ease-out forwards;
+}
+.gem-explosion .spark:nth-child(1)  { --sx: -22px; --sy: -26px; background: #fff; }
+.gem-explosion .spark:nth-child(2)  { --sx:  24px; --sy: -20px; background: #ffd700; }
+.gem-explosion .spark:nth-child(3)  { --sx: -28px; --sy:  12px; background: #ff8800; }
+.gem-explosion .spark:nth-child(4)  { --sx:  20px; --sy:  24px; background: #fff; }
+.gem-explosion .spark:nth-child(5)  { --sx:  0px;  --sy: -30px; background: #ffd700; }
+.gem-explosion .spark:nth-child(6)  { --sx: -18px; --sy:  28px; background: #ff6600; }
+.gem-explosion .spark:nth-child(7)  { --sx:  28px; --sy:   4px; background: #fff; }
+.gem-explosion .spark:nth-child(8)  { --sx: -10px; --sy: -28px; background: #ffaa00; }
+.gem-explosion .ring {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255,255,255,.8);
+  animation: ringBurst 0.4s ease-out forwards;
+}
+@keyframes sparkFly {
+  0%   { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--sx)), calc(-50% + var(--sy))) scale(0); opacity: 0; }
+}
+@keyframes ringBurst {
+  0%   { width: 10px; height: 10px; opacity: .9; border-width: 3px; }
+  100% { width: 60px; height: 60px; opacity: 0;  border-width: 1px; }
 }
 
 /* ── Team Panels ── */
@@ -560,8 +601,8 @@ html, body {
 #broadcast.bc-extra.bc-big  #broadcast-inner { font-size: 3.4rem; }
 #broadcast.bc-damage        #broadcast-inner { color: #ff5555; background: rgba(50,0,0,.75); border: 2px solid #ff4444; }
 #broadcast.bc-damage.bc-big #broadcast-inner { font-size: 3rem; }
-#broadcast.bc-spell         #broadcast-inner { color: #c77dff; background: rgba(30,0,50,.75); border: 2px solid #9b2fff; }
-#broadcast.bc-enemy-spell   #broadcast-inner { color: #ffa066; background: rgba(50,15,0,.75); border: 2px solid #ff6633; }
+#broadcast.bc-spell         #broadcast-inner { color: #c77dff; background: rgba(30,0,50,.75); border: 2px solid #9b2fff; font-size: 1.6rem; }
+#broadcast.bc-enemy-spell   #broadcast-inner { color: #ffa066; background: rgba(50,15,0,.75); border: 2px solid #ff6633; font-size: 1.6rem; }
 #broadcast.bc-death         #broadcast-inner { color: #ff4444; background: rgba(40,0,0,.80); border: 2px solid #cc2222; }
 #broadcast.bc-death.bc-big  #broadcast-inner { font-size: 3rem; }
 #broadcast.bc-system        #broadcast-inner { color: #aaaaee; background: rgba(10,8,30,.80); border: 2px solid #554488; }

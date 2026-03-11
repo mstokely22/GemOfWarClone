@@ -133,6 +133,7 @@ export function attemptSwap(r1, c1, r2, c2) {
   state.busy = true;
   // Reset extra-turn latch at the start of each player turn action
   state.grantExtra = false;
+  state.spellActive = false;
 
   animateSwap(r1, c1, r2, c2, () => {
     const matched = findAllMatches(state.board);

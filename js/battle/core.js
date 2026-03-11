@@ -20,7 +20,7 @@ function has(troop, pid) {
 }
 
 // ── Mana & Skull Processing (with passive hooks) ─────────────
-export function processMana(matched, isPlayer) {
+export function processMana(matched, isPlayer, explosionSkulls = 0) {
   const counts = {};
   for (const key of matched) {
     const [r, c] = key.split(',').map(Number);
@@ -73,6 +73,7 @@ export function processMana(matched, isPlayer) {
   let skullHit = null;
   if (counts['skull']) {
     const n       = counts['skull'];
+    const matchedSkulls = n - explosionSkulls;
     const atkTeam = isPlayer ? state.playerTeam : state.enemyTeam;
     const defTeam = isPlayer ? state.enemyTeam  : state.playerTeam;
     const atkIdx  = atkTeam.findIndex(t => t.life > 0);
@@ -80,8 +81,11 @@ export function processMana(matched, isPlayer) {
     if (atkIdx >= 0 && defIdx >= 0) {
       const attacker = atkTeam[atkIdx];
       const defender = defTeam[defIdx];
-      const bonus    = Math.max(0, n - 3) * SKULL_BONUS_PER_GEM;
-      let rawDmg     = attacker.attack + bonus;
+      // Matched skulls: full attack + bonus; explosion skulls: 1/3 attack each
+      const matchBonus = matchedSkulls > 0 ? Math.max(0, matchedSkulls - 3) * SKULL_BONUS_PER_GEM : 0;
+      const matchPart  = matchedSkulls > 0 ? attacker.attack + matchBonus : 0;
+      const explPart   = Math.floor(explosionSkulls * attacker.attack / 3);
+      let rawDmg       = matchPart + explPart;
 
       // Passive: warrior_fury — skull attacks deal +3 damage
       if (has(attacker, 'warrior_fury')) rawDmg += 3;
@@ -140,9 +144,6 @@ export function processMana(matched, isPlayer) {
           }
         }
 
-        const displayDmg = rawDmg;
-        if (displayDmg >= 20)      addBroadcast(`💀 ${displayDmg} DAMAGE!`, 'bc-damage bc-big');
-        else if (displayDmg >= 10) addBroadcast(`💀 ${displayDmg} DMG`,     'bc-damage');
         skullHit = { atkIdx, defIdx, dmg: rawDmg };
       }
     }
@@ -248,29 +249,45 @@ function showOverlay(title, msg) {
 export function processMatches(matched, isPlayer) {
   state.busy = true;
 
-  // ── Empowered gem explosions: expand matched set ──────────
-  // Any empowered gem in the matched set explodes its 3×3 neighbors.
+  // ── Empowered gem explosions: chain-react ──────────
+  // Any empowered gem in the set explodes 3×3 neighbors; if those
+  // neighbors are also empowered, they chain-react too.
   const explosionCells = new Set();
-  for (const key of matched) {
-    const [r, c] = key.split(',').map(Number);
-    const gem = state.board[r][c];
-    if (gem?.empowered) {
+  const processed = new Set();
+  let frontier = [...matched].filter(k => {
+    const [r, c] = k.split(',').map(Number);
+    return state.board[r]?.[c]?.empowered;
+  });
+  while (frontier.length) {
+    const nextFrontier = [];
+    for (const key of frontier) {
+      if (processed.has(key)) continue;
+      processed.add(key);
+      const [r, c] = key.split(',').map(Number);
       for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
           const nr = r + dr, nc = c + dc;
           if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
             const nk = `${nr},${nc}`;
-            if (!matched.has(nk) && state.board[nr][nc]) {
+            if (!matched.has(nk) && !explosionCells.has(nk) && state.board[nr][nc]) {
               explosionCells.add(nk);
+              // If this newly caught gem is also empowered, chain-react
+              if (state.board[nr][nc].empowered) nextFrontier.push(nk);
             }
           }
         }
       }
     }
+    frontier = nextFrontier;
   }
+  // Track how many skulls came from explosions (for fractional damage)
+  let explosionSkulls = 0;
   if (explosionCells.size) {
-    for (const k of explosionCells) matched.add(k);
-    addBroadcast('💥 EMPOWERED!', 'bc-extra');
+    for (const k of explosionCells) {
+      const [r, c] = k.split(',').map(Number);
+      if (state.board[r][c]?.type === 'skull') explosionSkulls++;
+      matched.add(k);
+    }
   }
 
   // LATCH: if this cascade level has a 4+ group, record it.
@@ -312,7 +329,7 @@ export function processMatches(matched, isPlayer) {
   }
 
   animateMatchPop(matched, () => {
-    const { skullHit } = processMana(matched, isPlayer);
+    const { skullHit } = processMana(matched, isPlayer, explosionSkulls);
 
     const afterAttack = () => {
       // Remove matched gems from DOM + board
@@ -369,11 +386,19 @@ export function processMatches(matched, isPlayer) {
         }
 
         if (isPlayer) {
-          // Switch to enemy
-          state.playerTurn = false;
-          renderTurnIndicator();
-          state.busy = false;
-          setTimeout(enemyCastSpells, ENEMY_DELAY * 0.5);
+          if (state.spellActive) {
+            // Skills don't end the player's turn
+            state.spellActive = false;
+            state.busy = false;
+            if (checkDeadlock()) addBroadcast('🔄 RESHUFFLED', 'bc-system');
+            startHintTimer();
+          } else {
+            // Switch to enemy
+            state.playerTurn = false;
+            renderTurnIndicator();
+            state.busy = false;
+            setTimeout(enemyCastSpells, ENEMY_DELAY * 0.5);
+          }
         } else {
           // Switch back to player
           state.playerTurn = true;
@@ -400,7 +425,7 @@ export function enemyCastSpells() {
   if (front && front.mana >= front.manaCost) {
     front.mana = 0;
     const msg = front.cast(front, state.enemyTeam, state.playerTeam);
-    if (msg) addBroadcast(`✨ ${front.spell}!`, 'bc-enemy-spell');
+    if (msg) addBroadcast(`✨ ${front.spell}\n${front.spellDesc || ''}`, 'bc-enemy-spell');
     checkDeaths();
     if (checkGameOver()) return;
     renderTeams();
@@ -459,6 +484,7 @@ export function castSpell(i) {
   // Check if spell needs board/enemy targeting.
   // Spell can set `troop._spellTargeting = { type, resolve }` to request targeting mode.
   troop.mana = 0;
+  state.spellActive = true;
   const result = troop.cast(troop, state.playerTeam, state.enemyTeam);
 
   // If cast returned a targeting request, enter targeting mode
@@ -479,13 +505,14 @@ export function castSpell(i) {
         }
       },
     };
-    addBroadcast(`🎯 ${troop.spell}!`, 'bc-spell');
+    addBroadcast(`🎯 ${troop.spell}\n${troop.spellDesc || ''}`, 'bc-spell');
     renderTeams();
     renderTurnIndicator();
     return;
   }
 
-  if (result) addBroadcast(`✨ ${troop.spell}!`, 'bc-spell');
+  if (result) addBroadcast(`✨ ${troop.spell}\n${troop.spellDesc || ''}`, 'bc-spell');
+  state.spellActive = false;
   checkDeaths();
   if (checkGameOver()) return;
   renderTeams();
@@ -510,32 +537,50 @@ export function injectCoreDeps(gemDom, board) {
 export function destroyGems(coordSet, isPlayer, onComplete) {
   state.busy = true;
 
-  // Check for empowered explosions in the destruction set
+  // Chain-react empowered gems in the destruction set
   const explosionCells = new Set();
-  for (const key of coordSet) {
-    const [r, c] = key.split(',').map(Number);
-    const gem = state.board[r][c];
-    if (gem?.empowered) {
+  const processed = new Set();
+  let frontier = [...coordSet].filter(k => {
+    const [r, c] = k.split(',').map(Number);
+    return state.board[r]?.[c]?.empowered;
+  });
+  while (frontier.length) {
+    const nextFrontier = [];
+    for (const key of frontier) {
+      if (processed.has(key)) continue;
+      processed.add(key);
+      const [r, c] = key.split(',').map(Number);
       for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
           const nr = r + dr, nc = c + dc;
           if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
             const nk = `${nr},${nc}`;
-            if (!coordSet.has(nk) && state.board[nr][nc]) {
+            if (!coordSet.has(nk) && !explosionCells.has(nk) && state.board[nr][nc]) {
               explosionCells.add(nk);
+              if (state.board[nr][nc].empowered) nextFrontier.push(nk);
             }
           }
         }
       }
     }
+    frontier = nextFrontier;
   }
+  let explosionSkulls = 0;
   if (explosionCells.size) {
-    for (const k of explosionCells) coordSet.add(k);
-    addBroadcast('💥 EMPOWERED!', 'bc-extra');
+    for (const k of explosionCells) {
+      const [r, c] = k.split(',').map(Number);
+      if (state.board[r][c]?.type === 'skull') explosionSkulls++;
+      coordSet.add(k);
+    }
   }
 
   animateMatchPop(coordSet, () => {
-    const { skullHit } = processMana(coordSet, isPlayer);
+    // All skulls in spell destruction are explosion skulls (fractional damage)
+    const totalSkulls = [...coordSet].filter(k => {
+      const [r, c] = k.split(',').map(Number);
+      return state.board[r]?.[c]?.type === 'skull';
+    }).length;
+    const { skullHit } = processMana(coordSet, isPlayer, totalSkulls);
 
     const afterAttack = () => {
       for (const key of coordSet) {
@@ -564,10 +609,18 @@ export function destroyGems(coordSet, isPlayer, onComplete) {
         renderTurnIndicator();
 
         if (isPlayer) {
-          state.playerTurn = false;
-          renderTurnIndicator();
-          state.busy = false;
-          setTimeout(enemyCastSpells, ENEMY_DELAY * 0.5);
+          if (state.spellActive) {
+            // Skills don't end the player's turn
+            state.spellActive = false;
+            state.busy = false;
+            if (checkDeadlock()) addBroadcast('🔄 RESHUFFLED', 'bc-system');
+            startHintTimer();
+          } else {
+            state.playerTurn = false;
+            renderTurnIndicator();
+            state.busy = false;
+            setTimeout(enemyCastSpells, ENEMY_DELAY * 0.5);
+          }
         } else {
           // Check if enemy earned an extra turn from cascades
           if (state.grantExtra) {

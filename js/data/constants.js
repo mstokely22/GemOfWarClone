@@ -18,7 +18,7 @@ export const SWIPE_THRESHOLD     = 15;  // px minimum swipe distance
 export const EMPOWERED_SPAWN_CHANCE = 0.03;  // 3% base chance
 
 export const ANIM_SWAP   = 180;  // ms — gem swap slide
-export const ANIM_MATCH  = 320;  // ms — gem pop
+export const ANIM_MATCH  = 450;  // ms — gem pop + explosion
 export const ANIM_FALL   = 280;  // ms — gem fall/spawn
 export const ENEMY_DELAY = 900;  // ms — pause before enemy acts
 export const ANIM_ATTACK = 350;  // ms — skull projectile travel

@@ -27,7 +27,5 @@ export const CHAR_BY_ID = Object.fromEntries(
   CHARACTERS.map(c => [c.charId, c])
 );
 
-/** Characters available in the draw pool (non-starters). */
-export const DRAWABLE_CHARS = CHARACTERS.filter(
-  c => c.charId !== 'roland' && c.charId !== 'elara'
-);
+/** Characters available in the draw pool (all heroes, including starters for star upgrades). */
+export const DRAWABLE_CHARS = [...CHARACTERS];

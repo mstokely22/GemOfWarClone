@@ -336,8 +336,6 @@ function processMana(matched, isPlayer) {
       defender.life = Math.max(0, defender.life - dmg);
       logs.push({ type:'damage', text:`💀 ${n} skulls! ${attacker.name} deals ${dmg} damage to ${defender.name}!` });
       skullHit = { atkIdx, defIdx, dmg };
-      if (dmg >= 20)      addBroadcast(`💀 ${dmg} DAMAGE!`, 'bc-damage bc-big');
-      else if (dmg >= 10) addBroadcast(`💀 ${dmg} DMG`, 'bc-damage');
     }
   }
   return { logs, skullHit };
